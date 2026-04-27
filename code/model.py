@@ -213,16 +213,19 @@ class DualObjectiveEQLoss(nn.Module):
       1) room branch가 LSD/세밀한 룸 보정을 담당
       2) pref residual branch가 취향 반영을 담당
       3) 최종 출력은 dual target을 맞춤
+
+    기본 설정은 A0_Proposed 손실이다.
+    A2_withPrefLoss는 lambda_pref_res / lambda_dir를 명시적으로 켜서 생성한다.
     """
     def __init__(
         self,
         lambda_final=1.0,
         lambda_room=0.35,
-        lambda_pref_res=0.25,
+        lambda_pref_res=0.0,
         lambda_shape=0.20,
         lambda_grad=0.20,
         lambda_curv=0.08,
-        lambda_dir=0.15,
+        lambda_dir=0.0,
         lambda_mean=0.03,
         n_freqs=128,
         f_min=20.0,

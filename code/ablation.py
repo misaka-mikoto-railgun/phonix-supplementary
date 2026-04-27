@@ -68,16 +68,37 @@ class A1_NoRoomInput(nn.Module):
 class A2_NoPrefLoss(DualObjectiveEQLoss):
     """Legacy name for the promoted proposed-loss setting."""
     def __init__(self, **kw):
-        super().__init__(lambda_pref_res=0.0, lambda_dir=0.0, **kw)
+        super().__init__(
+            lambda_final=1.0,
+            lambda_room=0.35,
+            lambda_pref_res=0.0,
+            lambda_shape=0.20,
+            lambda_grad=0.20,
+            lambda_curv=0.08,
+            lambda_dir=0.0,
+            lambda_mean=0.03,
+            **kw,
+        )
 
 
 class A0_ProposedLoss(A2_NoPrefLoss):
-    pass
+    """Canonical proposed loss: final + room terms only."""
 
 
 class A2_withPrefLossLoss(DualObjectiveEQLoss):
     """Canonical negative-ablation loss: retains the preference terms."""
-    pass
+    def __init__(self, **kw):
+        super().__init__(
+            lambda_final=1.0,
+            lambda_room=0.35,
+            lambda_pref_res=0.25,
+            lambda_shape=0.20,
+            lambda_grad=0.20,
+            lambda_curv=0.08,
+            lambda_dir=0.15,
+            lambda_mean=0.03,
+            **kw,
+        )
 
 # ──────────────────────────────────────────────
 # A3. w/o Pref Input
