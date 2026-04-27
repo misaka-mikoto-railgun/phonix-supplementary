@@ -1,0 +1,7 @@
+Model,Feature Dim,LSD ↓,dmr ↑,CosSim ↑
+E3 Nercessian,10 (main),5.939,0.505,0.023
+E3 Nercessian,20,5.88,0.51,0.019
+E3 Nercessian,40,5.863,0.508,0.018
+E4 Pepe,10 (main),5.78,0.507,0.048
+E4 Pepe,20,5.756,0.511,0.052
+E4 Pepe,40,5.779,0.512,0.041

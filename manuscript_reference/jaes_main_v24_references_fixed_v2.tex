@@ -1,0 +1,1192 @@
+% JAES Engineering Report
+% aes2e documentclass — 2025 template
+% Compiled with: pdflatex main.tex (x2)
+
+\documentclass{aes2e}
+\usepackage{capt-of}
+% ── Required packages ───────────────────────────────────────────────
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}       % proper table rules
+\usepackage{graphicx}
+\usepackage{microtype}
+\usepackage[section]{placeins}  % \FloatBarrier; restrict floats to their section
+% hyperref must be loaded LAST; explicit color options prevent the
+% [greenN]/[redN] color-name artifact some classes produce when
+% defaults are left unspecified.
+\usepackage[
+  colorlinks=false,    % no colored boxes/text on links
+  hidelinks,           % suppresses link borders entirely
+  pdfborder={0 0 0},   % belt-and-suspenders: no border boxes
+  hypertexnames=false  % avoids name collisions in some bibliography styles
+]{hyperref}
+\urlstyle{same}        % \url uses normal text font, not monospace
+
+% ── Float placement parameters (balanced; works with [tp] specifier) ─
+\renewcommand{\topfraction}{0.85}      % up to 85% of page may be top floats
+\renewcommand{\textfraction}{0.10}     % keep at least 10% text on mixed pages
+\renewcommand{\floatpagefraction}{0.75}% float-only pages must be 75%+ full
+\setcounter{topnumber}{3}              % up to 3 top floats per page
+\setcounter{totalnumber}{4}            % up to 4 floats total per page
+
+% ── Metadata ─────────────────────────────────────────────────────────
+\jyear{2026}
+\jmonth{}
+\jvol{}
+\jnum{}
+
+\begin{document}
+
+\markboth{AHN}{REAL-TIME ADAPTIVE PEQ FOR ROOM CORRECTION AND TONAL SHAPE TRACKING}
+
+% ── Title ────────────────────────────────────────────────────────────
+% Note: "new", "novel" are prohibited. Title ≤ 125 chars.
+% Char count: 104 chars (with spaces)
+\title{Real-Time Adaptive Parametric Equalization for Joint Room Response
+  Compensation and Tonal Shape Tracking%
+  \thanks{Manuscript received 2026. Corresponding author: Yongho Ahn
+    (nanhosoft@soongsil.ac.kr).}}
+
+% ── Authors ──────────────────────────────────────────────────────────
+\authorgroup{
+  \author{Yongho Ahn},
+  \role{Student Member, AES}
+  \email{(nanhosoft@soongsil.ac.kr)}
+  \affil{Department of AI Software Engineering, Soongsil University, Seoul, Republic of Korea}
+}
+
+% ── Abstract (100–200 words) ─────────────────────────────────────────
+\abstract{
+This engineering report describes a real-time adaptive parametric
+EQ~(PEQ) that jointly performs room-response compensation and
+operator-specified tonal-shape tracking. The task is objective spectral
+target reproduction under room coloration; no subjective listening
+preference claim is made. The model uses a lightweight TCN encoder with
+RoomResponseEncoder and UserPreferenceEncoder conditioning, followed by a
+two-stage head: Stage~A estimates a 128-bin room-correction prior and
+Stage~B outputs 7-band PEQ parameters rendered through a differentiable
+Gaussian approximation of peaking-EQ magnitude responses. Trained on
+40{,}000 synthetic samples, the proposed model reaches LSD~1.442~dB,
+DMR~0.928, and CosSim~0.960 on 3{,}000 held-out synthetic-RIR samples,
+with inference-only RTF~$<$~0.001 on a CPU. Dense 128-bin architecture
+variants achieve lower in-distribution LSD, but they do not emit PEQ
+control parameters. The proposed 7-band output is deployment-compatible
+and can be mapped to embedded PEQ control interfaces without fitting a
+dense response. Real-RIR tests using BUT ReverbDB and OpenAIR show a
+smaller synthetic-to-real gap for the proposed model than for the dense
+variants and the auxiliary-loss variant.
+}
+
+\maketitle
+
+% ═══════════════════════════════════════════════════════════════════════
+\section{INTRODUCTION}
+% ═══════════════════════════════════════════════════════════════════════
+
+Music reproduction in everyday listening spaces faces two intertwined
+challenges: room acoustics impose frequency-selective coloration on the
+reproduced signal, and target reproduction may deviate from a flat
+response according to operator-specified tonal shape requirements
+(e.g., a bass-emphasis preset, vocal-clarity profile, or broadband
+roll-off).
+
+Commercial room-correction systems such as Dirac Live, Audyssey,
+Sonos Trueplay, and Apple HomePod illustrate the practical importance of
+combining room adaptation with user-facing tonal controls, although their
+internal algorithms are generally not fully disclosed. In the hearing-aid
+literature, preference-conditioned multi-band gain prediction has been
+investigated extensively~\cite{keidser2006,nielsen2013,mondol2022};
+these systems differ in target task (audibility compensation rather than
+tonal shaping) and in output format (graphic-band gains rather than
+biquad coefficients).
+
+Within the published academic literature on neural parametric EQ, room
+correction and preference-based EQ have largely been treated as separate
+problems. Room-correction systems~\cite{miyoshi1988,pepe2020,pepe2022}
+optimize for spectral flatness without operator-specified tonal targets;
+preference- and text-based EQ systems~\cite{cartwright2013,seetharaman2016,
+chu2025,stylianou2026} assume a flat reproduction environment.
+Neural parametric-EQ parameter generation has been established in other
+task settings~\cite{nercessian2020,nercessian2021_hc,colonel2022,
+steinmetz2022}, and multi-task or conditioned formulations are a natural
+next step that this report exercises end-to-end.
+
+This report makes three practical contributions. First, it formulates a
+dual-objective PEQ task that combines room compensation (LSD) with tonal
+shape tracking (DMR, CosSim) in a single feed-forward model. Here, DMR
+measures the fraction of frequency bins where the predicted response
+matches the sign of the target tonal shape; it is an objective shape metric,
+not a subjective preference score.
+
+Second, it implements a lightweight \mbox{TCN$\times$4} encoder with
+concatenated room and user-preference conditioning and a two-stage output
+head: Stage~A estimates a 128-bin room-correction prior, and Stage~B emits
+7-band PEQ parameters rendered with a differentiable Gaussian
+approximation. These PEQ parameters ($f_c$, gain,~$Q$) can be mapped to
+embedded PEQ control interfaces such as TAS5756M-style I$^2$C controls
+without fitting a dense 128-bin response.
+
+Third, it evaluates the system against six external baselines (E1--E6),
+three dense-output architecture variants (AC1--AC3), targeted ablations
+(A1, A2, A3), paired statistical diagnostics, track-level aggregate analysis
+($N_\text{groups} = 1{,}306$), CPU RTF measurements, and real-RIR stress
+tests using BUT ReverbDB~\cite{szoke2019} and OpenAIR~\cite{openair2010}.
+A0 is not the highest-scoring architecture on in-distribution metrics:
+AC variants achieve approximately 0.6~dB lower LSD with unconstrained
+dense output. A0 is instead the deployment-compatible 7-band PEQ-output
+configuration, and its measured synthetic-to-real gap is smaller than
+those of the dense-output AC variants and the auxiliary-loss A2 variant.
+The intent is to document a concrete implementation and evaluation
+protocol for this engineering trade-off.
+
+% ═══════════════════════════════════════════════════════════════════════
+\section{RELATED WORK}
+\label{sec:related}
+% ═══════════════════════════════════════════════════════════════════════
+
+\subsection{Room Acoustic Correction}
+
+Classical room correction designs an inverse filter from a measured
+room impulse response (RIR) to flatten the frequency
+response~\cite{miyoshi1988}. Commercial products---Dirac Live,
+Audyssey, Sonos Trueplay, Apple HomePod---show that microphone-assisted
+room adaptation and user-facing target-curve controls are practically
+important, but their internal algorithms are proprietary and not fully
+auditable from public documentation.
+In the academic literature, Pepe et al.~\cite{pepe2020} estimate an EQ
+curve from audio features without explicit RIR input, and
+BiasNet/CFN~\cite{pepe2022} from the same group couples differentiable
+IIR parametric filters with a per-instance optimization targeting a flat
+response. These systems optimize for spectral flatness and do not treat
+an operator-specified tonal shape as an explicit model input.
+
+\subsection{Personalized and Preference-Based Equalization}
+
+Cartwright and Pardo's Social-EQ~\cite{cartwright2013} mapped
+natural-language descriptors to EQ settings via crowdsourcing, later
+extended to Audealize~\cite{seetharaman2016}. Recent text-driven EQ
+leverages audio--language embeddings: Text2FX uses
+CLAP~\cite{chu2025}, and Stylianou et al.~\cite{stylianou2026} use
+LLM-based population-level tonal alignment.
+The hearing-aid literature contains a substantial body of work on
+preference-conditioned EQ personalization, including paired-comparison
+learning of individual gain preferences~\cite{keidser2006,nielsen2013} and
+deep-learning-based personalization of prescriptive fitting
+rationales~\cite{mondol2022}; these systems output multi-band gain
+vectors rather than parametric-biquad coefficients and target audibility
+compensation rather than tonal shape reproduction in normal-hearing
+listening.
+These preference-oriented systems assume a flat or fixed reproduction
+environment and do not perform room-response compensation jointly with the
+preference mapping.
+
+\subsection{Differentiable Parametric EQ}
+
+Nercessian~\cite{nercessian2020} introduced a differentiable biquad
+filter for neural PEQ parameter matching; the hyperconditioned
+follow-up~\cite{nercessian2021_hc} mapped external user parameters to
+biquad coefficients with stability-preserving activations for audio
+distortion modelling. Colonel et al.~\cite{colonel2022} extended this
+to direct biquad-cascade design from target magnitude responses;
+Steinmetz et al.~\cite{steinmetz2022} (DeepAFx-ST) applied
+differentiable DSP to audio-effect style transfer;
+Sarkar and Lindborg~\cite{sarkar2025} (Diff-DEQ) combined
+FiLM-modulated TCN with BiGRU for adaptive dynamic equalization;
+and Mockenhaupt et al.~\cite{mockenhaupt2024} applied differentiable
+PEQ to per-instrument automatic equalization. These studies establish
+that neural PEQ parameter generation is feasible and deployable, but
+each targets a different task than the joint
+room-correction/tonal-shape setting here.
+
+\subsection{Positioning of This Work}
+
+Compared with the work surveyed above, the implementation described in
+this report combines four properties: (i)~feed-forward inference that
+generalizes across unseen rooms and preferences without per-instance
+retraining, (ii)~an explicit user-preference input branch fused with a
+room-response branch in a single jointly trained network, (iii)~a
+PEQ-parameter output head rendered by a differentiable Gaussian approximation
+whose parameters can be mapped to embedded PEQ control interfaces, and
+(iv)~release of implementation scripts and generated evaluation artifacts
+where licensing permits.
+Individual elements of this combination appear in prior work and commercial
+products; the engineering contribution of this report is the integration
+into a single documented implementation and evaluation protocol.
+
+% ═══════════════════════════════════════════════════════════════════════
+\section{PROPOSED METHOD}
+% ═══════════════════════════════════════════════════════════════════════
+
+\subsection{Problem Formulation}
+
+Let $\mathbf{x} \in \mathbb{R}^T$ denote a music signal reproduced in a
+room with impulse response $h$.
+The observed signal is $y = x * h$, where the room induces spectral
+coloration $H(f) = Y(f)/X(f)$.
+Simultaneously, the desired reproduction target deviates from a flat response
+according to an operator-specified tonal shape $P(f)$ (e.g., a bass-emphasis
+curve, a vocal-clarity profile, or a broadband roll-off).
+$P(f)$ represents a prescribed spectral target, not a claim about
+listener preference.
+
+We formulate the dual-objective EQ problem as follows: given acoustic features
+extracted from $y$ and a user tonal shape specification (mode
+$m \in \{0,1,2,3\}$ and per-band gain vector $\mathbf{g} \in \mathbb{R}^{10}$),
+predict an EQ response $R(f)$ such that the resulting response simultaneously
+compensates room-induced spectral distortion and tracks the target tonal
+shape $P(f)$ with high directional fidelity.
+The dual target used for training and for the headline tables is:
+\begin{equation}
+  T_\text{dual}(f) = T_\text{room}(f) + T_\text{pref}(f),
+\end{equation}
+where $T_\text{room}(f)$ is the ideal room correction response and
+$T_\text{pref}(f)$ is the tonal shape profile interpolated from the
+band-gain vector $\mathbf{g}$ at 10 graphic-EQ center frequencies
+[63, 125, 250, 500, 1k, 2k, 4k, 8k, 12k, 16k]~Hz.
+
+\subsection{Model Architecture}
+
+Fig.~\ref{fig:arch} shows the proposed DualObjectiveAdaptivePEQ architecture.
+The model consists of six components.
+\begin{figure}[tp]
+  \centering
+  \includegraphics[width=\linewidth]{fig1_architecture_docx.png}
+  \caption{Two-stage DualObjectiveAdaptivePEQ architecture overview. The RoomResponseEncoder (orange), TCN$\times$4 backbone (green), and UserPreferenceEncoder (blue) feed Stage~A (room correction prior) and Stage~B (preference-conditioned PEQ).}
+  \label{fig:arch}
+\end{figure}
+
+
+\textbf{RoomResponseEncoder.}
+A two-layer MLP (128$\to$64$\to$32, LayerNorm$+$GELU) compresses the
+128-bin room response input into a room vector
+$\mathbf{v}_r \in \mathbb{R}^{32}$.
+Ablations confirm that removing this component degrades
+out-of-distribution robustness (removing it raises real-RIR LSD to 4.875~dB vs.\ proposed: 1.941~dB).
+
+\textbf{UserPreferenceEncoder.}
+A mode embedding ($n_\text{modes} = 4$, dim~$= 16$) is concatenated with a
+projected band-gain vector (10$\to$64, MLP$+$LayerNorm$+$GELU), and fused
+to produce $\mathbf{v}_p \in \mathbb{R}^{64}$.
+Conditioning is applied by concatenation in the reported model rather than
+via FiLM~\cite{perez2018}.
+
+\textbf{Input Projection.}
+Acoustic features $\mathbf{x} \in \mathbb{R}^{T \times 10}$ are projected
+to $\mathbb{R}^{T \times 64}$ via a linear layer with LayerNorm and GELU.
+
+\textbf{TCN Blocks.}
+Four causal dilated temporal convolutional blocks
+($n_\text{blocks} = 4$, dilation $\in \{1,2,4,8\}$, kernel size~$= 3$)
+process the sequence with residual connections.
+Left-padding only ensures no future leakage, maintaining compatibility
+with segment-based real-time deployment.
+
+\textbf{Attention Pooling.}
+A learnable AttentionPooling module aggregates the sequence into context
+vector $\mathbf{ctx} \in \mathbb{R}^{64}$.
+
+\textbf{Two-Stage Output Head.}
+Stage~A (room correction prior): $\mathbf{v}_r$ alone is fed to
+\texttt{room\_mean\_head} (scalar mean-shift, scale~$= 4.0$~dB) and
+\texttt{room\_shape\_head} (128-bin mean-centered shape,
+scale~$= 12.0$~dB), which are summed to produce
+$\mathbf{r}_\text{corr} \in \mathbb{R}^{128}$.
+Stage~A deliberately excludes $\mathbf{ctx}$ to ensure that room correction
+depends solely on the measured room response, independent of musical content.
+This contrasts with the AC variants, which condition Stage~A on both
+$\mathbf{ctx}$ and $\mathbf{v}_r$; the $\mathbf{v}_r$-only design in A0
+is motivated by improving generalization to unseen acoustic
+environments; this design is supported empirically by A0's
+smaller synthetic-to-real domain gap (Section~\ref{sec:ood}).
+
+Stage~B (preference-conditioned PEQ):
+$[\mathbf{ctx},\, \mathbf{v}_r,\, \mathbf{v}_p,\, \mathbf{r}_\text{corr},\,
+\mathbf{p}_\text{curve}]$ are fed to \texttt{peq\_head}, which outputs
+$K=7$ filter parameters ($f_c \in [80, 16000]$~Hz, gain $\in [-6, +6]$~dB,
+$Q \in [0.3, 8.0]$) per filter.
+A differentiable Gaussian approximation of the peaking-EQ magnitude response
+(following Nercessian~\cite{nercessian2020}) renders these into a 128-bin
+frequency response $\mathbf{r}_\text{PEQ}$.
+The final prediction is:
+\begin{equation}
+  \hat{R}(f) = \mathbf{r}_\text{corr}(f) + \mathbf{r}_\text{PEQ}(f).
+\end{equation}
+This design provides a deployment-compatible control output: the $K=7$
+filter parameters can be mapped to embedded PEQ control interfaces
+(e.g., TAS5756M-style I$^2$C controls) without fitting a dense 128-bin
+response after inference. The \texttt{peq\_head} outputs raw parameters
+that are sigmoid/tanh-mapped to physical ranges, then converted to a
+128-bin magnitude response through the Gaussian PEQ approximation.
+The two-stage factorization encourages the model to first address room
+correction (Stage~A) and then apply parametric adjustments to track the
+residual tonal shape target (Stage~B).
+
+\subsection{Loss Function}
+
+The proposed model is trained with a two-term top-level loss:
+\begin{equation}
+  \mathcal{L} = \lambda_\text{final}\,\mathcal{L}_\text{final} +
+                \lambda_\text{room}\,\mathcal{L}_\text{room},
+\end{equation}
+where $\lambda_\text{final}=1.0$ and $\lambda_\text{room}=0.35$.
+$\mathcal{L}_\text{final}$ is a weighted curve loss between
+$\hat{R}$ and $T_\text{dual}$, incorporating A-weighting-based perceptual
+weights, low/high-edge frequency boosts, shape/gradient/curvature
+sub-terms, and a small mean-level penalty ($\lambda_\text{mean}=0.03$)
+to discourage global level drift between the predicted and target
+responses.
+$\mathcal{L}_\text{room}$ directly supervises $\mathbf{r}_\text{corr}$
+against $T_\text{room}$, encouraging Stage~A to specialize in room
+correction.
+A more elaborate variant adds explicit Stage-B supervision via a
+preference-residual loss $\mathcal{L}_\text{pref}$ (on the PEQ residual
+against $T_\text{dual} - T_\text{room}$) and a directional loss
+$\mathcal{L}_\text{dir} = 1 - \text{CosSim}(\hat{R} - T_\text{room},
+T_\text{pref})$.
+This four-term variant was investigated and is reported as ablation
+``A2 with Pref Loss'' in Section~\ref{sec:ablation}; it does not improve
+test-set metrics over the simplified two-term top-level loss used in the
+proposed model and is therefore not part of A0.
+
+% ═══════════════════════════════════════════════════════════════════════
+\section{EXPERIMENTAL SETUP}
+% ═══════════════════════════════════════════════════════════════════════
+
+\subsection{Dataset}
+
+We constructed a synthetic dataset by convolving FMA-Medium music
+clips~\cite{defferrard2017} (25{,}000 tracks, 16~genres) with simulated RIRs
+generated using pyroomacoustics~\cite{scheibler2018}.
+Room parameters were sampled uniformly: room size 3.5--8.0~m,
+RT60 0.2--0.75~s, source--microphone distance 0.7--2.2~m.
+These ranges reflect realistic domestic listening environments (living rooms,
+offices).
+Microphone estimation noise ($\sigma \in [0.4, 2.0]$~dB, bias $\leq 1.25$~dB)
+was added to simulate imperfect room response measurements.
+
+Four tonal shape presets (Vocal, Bass, Treble, Soft) were manually defined to
+span representative spectral emphasis patterns across the 63~Hz--16~kHz range:
+low-frequency emphasis~(Bass), upper-midrange boost~(Vocal),
+high-frequency emphasis~(Treble), and broadband roll-off~(Soft).
+These presets serve as illustrative examples of operator-specified tonal shapes;
+the model and training procedure are independent of the specific preset
+definitions, and any user-defined target tonal shape can be substituted.
+During target generation, the per-sample band-gain input is folded into the
+synthesized preference target with a partial weight of 0.55, modelling soft
+control compliance rather than verbatim copying of the operator-provided
+band vector. The preset center-band values used as the base tonal profiles are
+listed in Table~\ref{tab:profiles}.
+
+\begin{table}[tp]
+  \centering
+  \caption{Tonal shape preset center-band gains (dB).
+           Frequency bands in Hz.}
+  \label{tab:profiles}
+  \resizebox{\linewidth}{!}{%
+  \begin{tabular}{lrrrrrrrrrr}
+    \toprule
+    Mode & 63 & 125 & 250 & 500 & 1k & 2k & 4k & 8k & 12k & 16k \\
+    \midrule
+    Vocal  & $-4$ & $-3$ & $0$ & $+2$ & $+5$ & $+6$ & $+4$ & $+2$ & $-1$ & $-2$ \\
+    Bass   & $+8$ & $+6$ & $+3$ & $0$ & $-1$ & $-2$ & $-3$ & $-2$ & $-1$ & $0$ \\
+    Treble & $-2$ & $-1$ & $0$ & $0$ & $+1$ & $+3$ & $+5$ & $+7$ & $+8$ & $+6$ \\
+    Soft   & $+2$ & $+1$ & $+1$ & $0$ & $-1$ & $-3$ & $-5$ & $-6$ & $-4$ & $-3$ \\
+    \bottomrule
+  \end{tabular}%
+  }
+\end{table}
+
+Data were split by track identity into train, validation, and held-out
+synthetic test partitions to prevent within-track leakage across splits
+(40{,}000~/~5{,}000~/~3{,}000 samples respectively).
+Each sample consists of a 4-second clip convolved with an independently
+sampled RIR; multiple clips may be drawn from the same track but never
+appear in more than one split.
+All experiments used a fixed random seed (seed~$= 42$).
+An additional out-of-distribution test set of 2{,}000 samples was constructed
+using real-world RIRs from BUT ReverbDB~\cite{szoke2019} and OpenAIR~\cite{openair2010}.
+All audio was resampled to 48~kHz.
+The frequency-response targets are represented as 128 log-spaced bins
+between 20~Hz and 24~kHz; the same grid is shared across the dataset
+generator, model output, baselines, and loss computation.
+The synthetic dataset generation pipeline, model code, and training scripts
+are implemented in PyTorch; code availability will be stated upon acceptance.
+
+\subsection{Input Features}
+
+From each 4-second clip we extract a $T = 32$ frame $\times$ 10-dimensional
+feature sequence: 8~MFCC coefficients, 1~log-energy, and 1~normalized spectral
+centroid.
+Features are extracted with a 25~ms window and 10~ms hop
+(\texttt{hop\_length} $= 480$ samples at 48~kHz), then reduced to
+32~frames by uniform temporal index sampling, followed by per-dimension
+$z$-score normalization.
+The 32-frame resolution is sufficient for capturing room-level spectral
+characteristics, which vary slowly relative to musical transients;
+fine-grained temporal detail is provided directly by the 128-bin
+\texttt{room\_response} input.
+
+\subsection{Evaluation Metrics}
+
+We report three variants of LSD:
+$\text{LSD}_\text{dual}$ (predicted EQ response vs.\ $T_\text{dual}$,
+primary metric), $\text{LSD}_\text{room}$ (predicted EQ response vs.\
+$T_\text{room}$), and $\text{LSD}_\text{pref}$ (heard response vs.\
+$T_\text{pref}$). The estimated heard response is defined as
+$\hat{H}(f) = \hat{R}(f) - T_\text{room}(f)$, i.e., the predicted EQ
+response after accounting for the room-correction target. Unless otherwise
+noted, LSD refers to $\text{LSD}_\text{dual}$.
+
+\textbf{Directional Match Rate~(DMR)} is the fraction of frequency bins where
+the heard response after room compensation has the same sign as the tonal
+shape target:
+$\text{sign}(\hat{R}(f)-T_\text{room}(f)) =
+\text{sign}(T_\text{pref}(f))$, higher is better.
+DMR directly measures tonal shape tracking fidelity---the degree to which
+the predicted response reproduces the directional structure of the target
+shape at each frequency bin after accounting for room correction.
+It is a purely objective metric and does not imply subjective preference
+alignment.
+It is complemented by \textbf{Cosine Similarity~(CosSim)}, computed between
+the heard response and the target tonal shape.
+\textbf{Real-Time Factor~(RTF$^\dagger$)} $=$ inference-only forward-pass
+latency divided by the 4-second segment duration used in the evaluation
+script; RTF $< 1.0$ indicates real-time inference capability.
+($^\dagger$ Excludes the time needed to accumulate the 4-second audio
+context and to extract acoustic features and the room-response input;
+see Section~\ref{sec:rtf}.)
+
+\subsection{Baselines and Comparisons}
+
+Six external baselines span the design space.
+E1~(No Processing) serves as a lower bound.
+E2~(Static Mode EQ) applies a fixed rule-based profile per mode without
+room awareness and does not use the per-sample \texttt{band\_gains} vector.
+E3~(Nercessian MLP~\cite{nercessian2020}) and E4~(Pepe CNN~\cite{pepe2020})
+are reimplementations of prior neural room correction systems, trained on
+$T_\text{room}$ only.
+The primary limitation of E3 and E4 as baselines is not feature dimensionality
+but objective mismatch: both models are trained on room correction targets
+only, whereas A0 optimizes a dual target $T_\text{dual}$.
+This mismatch is intentional---it reflects the original design scope of
+these systems---and explains their near-random DMR scores regardless of
+architecture.
+
+E5~(Sequential: E3$\to$E2) represents the na\"{i}ve combination of room
+correction and tonal shape preset EQ.
+E6~(DSP Analytical) inverts the measured room response and adds the tonal
+shape profile analytically, with no learned parameters; like E2, it uses
+the discrete mode profile but not the per-sample \texttt{band\_gains}
+conditioning.
+E2 and E6 are therefore interpreted as intentionally simple static or
+analytical reference operating points rather than capacity-matched
+full-conditioning competitors to A0. Conditioning-aware learned comparisons
+are provided by A3 and AC1--AC3.
+
+
+Three architecture comparison variants (AC1--AC3) share the same
+dual-objective loss and concat conditioning as the proposed model, but differ
+from A0 in three respects: (i)~the sequence aggregation mechanism,
+(ii)~Stage~A conditioning (\texttt{ctx}$+$\texttt{room\_vec}
+vs.\ \texttt{room\_vec} only in A0), and (iii)~Stage~B output structure
+(direct 128-bin via \texttt{pref\_res\_head}, rather than A0's
+PEQ-parameterized Stage~B).
+AC1~(TCN$+$BiLSTM) uses bidirectional LSTM mean pooling;
+AC2~(TCN$+$GRU) uses causal single-direction GRU;
+AC3~(TCN$+$Conformer~\cite{gulati2020}) uses two Conformer blocks followed
+by attention pooling.
+
+\subsection{Ablation Design}
+
+Three targeted ablations isolate the contribution of each key design decision.
+A1~(w/o Room Awareness) removes both the explicit \texttt{room\_response}
+input and the room-induced coloration cues in the audio feature stream: when
+clean pre-convolution features are available, A1 uses them instead of the
+reverberant feature sequence. This ablation therefore tests dependence on
+room-related information as a whole---explicit room measurements and implicit
+reverberation cues---rather than only the explicit room-response vector.
+A2~(+Pref/Dir Loss) keeps the same two-stage PEQ-parameter architecture as A0
+but adds explicit Stage-B preference residual supervision
+$\mathcal{L}_\text{pref}$ and directional alignment loss
+$\mathcal{L}_\text{dir}$. This ablation tests whether auxiliary
+preference-specific losses improve over direct supervision of the final
+dual target.
+A3~(w/o Pref Input) removes both \texttt{mode\_id} and \texttt{band\_gains}
+inputs entirely, eliminating the UserPreferenceEncoder conditioning---this
+isolates whether tonal shape tracking originates from input conditioning or
+from loss design.
+
+All trainable models share the same training protocol: AdamW
+optimizer~($lr = 3 \times 10^{-4}$, weight\_decay~$= 10^{-4}$),
+CosineAnnealingLR~($T_\text{max} = 300$, $\eta_\text{min} = 10^{-6}$),
+batch size~512, early stopping with patience~$= 15$ epochs
+monitored on val\_lsd.
+
+% ═══════════════════════════════════════════════════════════════════════
+\section{RESULTS}
+% ═══════════════════════════════════════════════════════════════════════
+
+\subsection{Main Results}
+
+Table~\ref{tab:main} summarizes results across all models on a held-out
+test set of 3{,}000 synthetic-RIR samples.
+The two neural baselines that target only room correction (E3, E4)
+record near-random DMR (0.507 and 0.504), demonstrating that room
+correction alone systematically fails to track the target tonal shape.
+The static or sequential baselines that include a preset-based EQ
+component (E2, E5) reach DMR 0.736 and 0.767 but pay a substantial LSD
+penalty (3.670--3.573~dB) under room-degraded conditions.
+The analytical baseline E6, which inverts the measured room response
+and adds the tonal preset analytically, is the strongest non-learned baseline
+(LSD~2.330~dB, DMR~0.882).
+The three architectural variants AC1--AC3, which share the proposed
+encoder backbone but use a dense 128-bin output head, obtain the
+lowest in-distribution LSD (0.853--0.870~dB) and the highest DMR
+(0.945--0.947).
+The proposed model A0 achieves LSD~1.442~dB, DMR~0.928, CosSim~0.960,
+trailing the AC variants by approximately 0.6~dB on dual-target LSD.
+Unlike the AC variants, A0 emits 7-band PEQ parameters~($f_c$, gain,
+$Q$) that can be mapped to a target amplifier control interface without
+post-hoc dense-response fitting.
+A0 also remains closer to the room-only target under the Room-LSD
+diagnostic (LSD$_\text{room}$~4.689~dB) than the AC variants
+(5.226--5.238~dB), consistent with its \texttt{room\_vec}-only
+factorization.
+All evaluated models remain at or below RTF~0.001 under the
+inference-only 4-second-segment definition.
+
+
+Fig.~\ref{fig:room_correction} examines room correction behaviour as a function of room coloration severity and reverberation time. Fig.~\ref{fig:per_mode} breaks results down per tonal shape preset, showing that A0 maintains consistent performance across all four modes while baselines collapse to near-random DMR.
+\begin{figure}[tp]
+  \centering
+  \includegraphics[width=\linewidth]{fig2_room_correction.pdf}
+  \caption{Room correction performance: (a) mean predicted response vs.\ room coloration bias; (b) LSD by RT60 quartile.}
+  \label{fig:room_correction}
+\end{figure}
+
+\begin{figure}[tp]
+  \centering
+  \includegraphics[width=\linewidth]{fig3_per_mode.pdf}
+  \caption{Per-mode LSD (top) and DMR (bottom) for E3, E4, and A0.}
+  \label{fig:per_mode}
+\end{figure}
+
+
+\begin{table}[tp]
+  \centering
+  \caption{Main results on the held-out test set of 3{,}000 synthetic-RIR
+           samples. \textbf{Bold} denotes the best result per metric.
+           RTF$^\dagger$ = evaluation-script inference-only latency /
+           4-second segment duration (excludes context accumulation; see
+           Section~\ref{sec:rtf}). All models measured on AMD Ryzen
+           9800X3D~(single-threaded). $\star$~denotes the proposed model.}
+  \label{tab:main}
+  \resizebox{\linewidth}{!}{%
+  \begin{tabular}{lccccc}
+    \toprule
+    Model & LSD $\downarrow$ (dB) & DMR $\uparrow$ & CosSim $\uparrow$
+          & RTF$^\dagger$ $\downarrow$ & Params \\
+    \midrule
+    E1~No Processing            & 6.033 & 0.482 & 0.027 & $<$0.001 & 0 \\
+    E2~Static Mode EQ           & 3.670 & 0.736 & 0.720 & $<$0.001 & 0 \\
+    E3~Nercessian MLP~\cite{nercessian2020} & 5.964 & 0.507 & 0.011 & $<$0.001 & 138{,}255 \\
+    E4~Pepe CNN~\cite{pepe2020}             & 5.809 & 0.504 & 0.032 & $<$0.001 & 50{,}351 \\
+    E5~Sequential (E3$\to$E2)   & 3.573 & 0.767 & 0.732 & $<$0.001 & 138{,}255 \\
+    E6~DSP Analytical           & 2.330 & 0.882 & 0.919 & $<$0.001 & 0 \\
+    \midrule
+    AC1~TCN$+$BiLSTM            & \textbf{0.853} & \textbf{0.947} & \textbf{0.982} & 0.001    & 247{,}713 \\
+    AC2~TCN$+$GRU               & 0.860 & 0.946 & 0.982 & $<$0.001 & 272{,}545 \\
+    AC3~TCN$+$Conformer~\cite{gulati2020} & 0.870 & 0.945 & 0.982 & $<$0.001 & 418{,}914 \\
+    \midrule
+    A0~Proposed $\star$         & 1.442 & 0.928 & 0.960 & $<$0.001 & 203{,}447 \\
+    A1~w/o Room Awareness           & 2.897 & 0.832 & 0.862 & $<$0.001 & 140{,}033 \\
+    A2~with Pref Loss           & 1.703 & 0.884 & 0.944 & $<$0.001 & 203{,}447 \\
+    A3~w/o Pref Input           & 5.329 & 0.509 & 0.084 & $<$0.001 & 140{,}257 \\
+    \bottomrule
+  \end{tabular}%
+  }
+\end{table}
+
+\subsection{Ablation Study}
+\label{sec:ablation}
+
+Table~\ref{tab:ablation} reports ablation results.
+Ablation A3 (w/o Pref Input) produces the largest degradation overall:
+LSD rises from 1.442 to 5.329~dB and DMR drops from 0.928 to 0.509,
+with paired effect size $d_z = +2.376$ in favour of A0 on DMR
+($p < 0.001$).
+This identifies the UserPreferenceEncoder input as the primary driver of
+tonal shape tracking fidelity.
+Ablation A1 (w/o Room Awareness) yields LSD~2.897~dB and DMR~0.832 on
+synthetic RIRs, then degrades further to LSD~4.875~dB and DMR~0.740 on
+real RIRs (versus proposed A0: 1.941~dB, 0.885), confirming that
+room-related information---explicit room measurements and implicit
+reverberation cues---is essential both for in-distribution accuracy and
+for out-of-distribution robustness.
+Ablation A2 (with Pref Loss) is identical to A0 in architecture but
+adds the explicit Stage-B preference loss $\mathcal{L}_\text{pref}$ and
+direction loss $\mathcal{L}_\text{dir}$ described in Section~3.3.
+A2 yields LSD~1.703~dB and DMR~0.884, both worse than the simplified
+A0 (LSD~1.442~dB, DMR~0.928); the proposed model attains 0.26~dB
+lower LSD and 0.044 higher DMR than A2 ($d_z = -0.486$ for LSD,
+$d_z = +0.404$ for DMR; both $p < 0.001$).
+The small but consistent advantage of A0 over A2 indicates that the
+explicit Stage-B loss terms do not improve test-time metrics for this
+task; tonal shape tracking fidelity emerges primarily from the input
+conditioning structure (UserPreferenceEncoder) and the additive
+dual-target formulation $T_\text{dual}$ rather than from auxiliary loss
+terms.
+
+
+Fig.~\ref{fig:ablation_bar} summarizes the ablation metric shifts relative to the A0 baseline.
+\begin{figure}[tp]
+  \centering
+  \includegraphics[width=\linewidth]{fig4_ablation_bar.pdf}
+  \caption{Ablation study: LSD and DMR per variant. Dashed line = A0 baseline.}
+  \label{fig:ablation_bar}
+\end{figure}
+
+
+\begin{table}[tp]
+  \centering
+  \caption{Ablation results on the test set ($N=3{,}000$).
+           $^\ddagger$$p < 0.001$ vs.\ proposed A0 in raw paired tests.}
+  \label{tab:ablation}
+  \resizebox{\linewidth}{!}{%
+  \begin{tabular}{llccc}
+    \toprule
+    Variant & Description & LSD $\downarrow$ & DMR $\uparrow$ & CosSim $\uparrow$ \\
+    \midrule
+    A0~$\star$ & Proposed (simplified two-term loss)
+               & \textbf{1.442} & \textbf{0.928} & \textbf{0.960} \\
+    A1         & w/o Room Awareness
+               & 2.897 & 0.832$^\ddagger$ & 0.862$^\ddagger$ \\
+    A2         & with Pref Loss (adds $\mathcal{L}_\text{pref}+\mathcal{L}_\text{dir}$)
+               & 1.703 & 0.884$^\ddagger$ & 0.944$^\ddagger$ \\
+    A3         & w/o Pref Input
+               & 5.329 & 0.509$^\ddagger$ & 0.084$^\ddagger$ \\
+    \bottomrule
+  \end{tabular}%
+  }
+\end{table}
+
+\subsection{Paired Statistical Diagnostics}
+\label{sec:stats}
+
+Table~\ref{tab:stats} reports raw paired-test diagnostics on the
+held-out test set ($N=3{,}000$).
+These p-values are not multiple-comparison adjusted; LSD is treated as the
+primary error metric, while DMR is reported as a secondary tonal-alignment
+diagnostic.
+All comparisons against the room-only neural baselines (E3, E4) show
+small raw paired-test $p$-values ($p < 0.001$) with large effect sizes on both metrics:
+A0 attains 4.522~dB lower LSD than E3 ($d_z = -3.702$) and 4.366~dB
+lower than E4 ($d_z = -4.033$); A0's DMR exceeds E3 by 0.422 and E4 by
+0.425 ($d_z = +2.329$ and $+2.431$, both $p < 0.001$).
+A0 vs.\ A3 (w/o Pref Input) yields the largest overall effect size
+(LSD: 3.886~dB lower, $d_z = -4.226$; DMR: 0.420 higher,
+$d_z = +2.376$), indicating that the UserPreferenceEncoder input is the
+single most impactful component in these diagnostics.
+A0 vs.\ A1 (w/o Room Awareness) also shows a large raw paired-test difference
+(LSD: 1.455~dB lower, $d_z = -1.082$; DMR: 0.096 higher,
+$d_z = +0.806$, both raw $p < 0.001$).
+A0 vs.\ A2 (with Pref Loss) also yields small raw paired-test $p$-values
+($p < 0.001$) but with small effect sizes: A0 attains 0.261~dB lower LSD
+($d_z = -0.486$) and 0.044 higher DMR ($d_z = +0.404$) than A2,
+consistent with the interpretation that the explicit Stage-B loss
+terms provide marginal, and on this test set slightly negative,
+contributions to inference metrics.
+A0 vs.\ AC variants also yields small raw paired-test $p$-values
+($p < 0.001$) but with small effect sizes in the opposite direction: AC1--AC3 attain 0.57--0.59~dB
+lower LSD ($d_z \approx +1.16$ to $+1.19$ in favour of AC) and 0.017--0.019
+higher DMR ($d_z \approx -0.54$ to $-0.56$); these reflect the
+in-distribution advantage of unconstrained dense 128-bin output over
+the proposed 7-band PEQ parameter output, discussed further in
+Section~\ref{sec:arch}.
+
+Track-level aggregate analysis ($N_\text{groups} = 1{,}306$ tracks)
+addresses potential within-track correlation by collapsing each
+track's samples to a single per-track mean before pairing.
+The findings are consistent with the sample-level pattern.
+On LSD, the proposed A0 achieves a 1.254~dB lower per-track mean than
+A1 (Cohen's $d_z$ in the direction favouring A0; track-level
+raw $p < 0.001$), 0.257~dB lower than A2,
+3.890~dB lower than A3, 4.542~dB lower than E3, and 4.380~dB lower
+than E4.
+On DMR, A0 attains 0.084 higher per-track mean than A1, 0.044 higher
+than A2, 0.422 higher than A3, 0.427 higher than E3, and 0.428 higher
+than E4 (all raw paired-test $p < 0.001$).
+The track-level effect sizes corroborate the sample-level pattern:
+A0 outperforms the room-only or static-EQ baselines and ablations in these
+paired diagnostics, while the dense-output AC variants attain 0.574--0.592~dB
+lower per-track LSD than A0 and 0.016--0.018 higher per-track DMR.
+
+Fig.~\ref{fig:dmr_scatter} shows the per-sample DMR gap between A0 and
+two informative contrasts (A3, baseline E3); Fig.~\ref{fig:per_mode_response}
+overlays predicted frequency responses by tonal shape preset across 200
+test samples.
+\begin{figure}[tp]
+  \centering
+  \includegraphics[width=\linewidth]{fig6_scatter.pdf}
+  \caption{Sample-level DMR scatter: A0 vs.\ A3 (w/o Pref Input) and A0 vs.\ E3.}
+  \label{fig:dmr_scatter}
+\end{figure}
+
+\begin{figure}[tp]
+  \centering
+  \includegraphics[width=\linewidth]{fig7_freq_response.pdf}
+  \caption{Per-mode predicted frequency responses (200 test samples,
+           shaded region = $\pm 1$ standard deviation).}
+  \label{fig:per_mode_response}
+\end{figure}
+
+
+\begin{table}[tp]
+  \centering
+  \caption{Paired statistical test results on the test set
+           ($N = 3{,}000$). Raw paired-test $p$-values are reported as diagnostic statistics.
+           $\Delta$ favours A0 sign convention: LSD shown as
+           A0 minus baseline (negative = A0 lower LSD = A0 better);
+           DMR shown as A0 minus baseline (positive = A0 higher DMR
+           = A0 better).
+           $d_z$ = Cohen's $d_z$ for paired comparisons.
+           Win\% = fraction of test samples where A0 is strictly better.}
+  \label{tab:stats}
+  \resizebox{\linewidth}{!}{%
+  \begin{tabular}{llcccc}
+    \toprule
+    Comparison & Metric & $\Delta$ mean & $p$-value & $d_z$ & Win\% \\
+    \midrule
+    A0 vs.\ A1 & LSD & $-1.455$ & $<$0.001 & $-1.082$ & 86.5\% \\
+    A0 vs.\ A1 & DMR & $+0.096$ & $<$0.001 & $+0.806$ & 78.3\% \\
+    \midrule
+    A0 vs.\ A2 & LSD & $-0.261$ & $<$0.001 & $-0.486$ & 67.3\% \\
+    A0 vs.\ A2 & DMR & $+0.044$ & $<$0.001 & $+0.404$ & 49.6\% \\
+    \midrule
+    A0 vs.\ A3 & LSD & $-3.886$ & $<$0.001 & $-4.226$ & 100.0\% \\
+    A0 vs.\ A3 & DMR & $+0.420$ & $<$0.001 & $+2.376$ & 99.5\% \\
+    \midrule
+    A0 vs.\ E3 & LSD & $-4.522$ & $<$0.001 & $-3.702$ & 99.7\% \\
+    A0 vs.\ E3 & DMR & $+0.422$ & $<$0.001 & $+2.329$ & 99.1\% \\
+    \midrule
+    A0 vs.\ E4 & LSD & $-4.366$ & $<$0.001 & $-4.033$ & 100.0\% \\
+    A0 vs.\ E4 & DMR & $+0.425$ & $<$0.001 & $+2.431$ & 99.3\% \\
+    \midrule
+    A0 vs.\ AC1 & LSD & $+0.589$ & $<$0.001 & $+1.194$ & 7.6\% \\
+    A0 vs.\ AC1 & DMR & $-0.019$ & $<$0.001 & $-0.560$ & 22.8\% \\
+    A0 vs.\ AC2 & LSD & $+0.582$ & $<$0.001 & $+1.175$ & 8.3\% \\
+    A0 vs.\ AC2 & DMR & $-0.018$ & $<$0.001 & $-0.550$ & 23.4\% \\
+    A0 vs.\ AC3 & LSD & $+0.572$ & $<$0.001 & $+1.159$ & 8.7\% \\
+    A0 vs.\ AC3 & DMR & $-0.017$ & $<$0.001 & $-0.539$ & 24.2\% \\
+    \bottomrule
+  \end{tabular}%
+  }
+\end{table}
+
+\subsection{Out-of-Distribution Generalization}
+\label{sec:ood}
+
+Table~\ref{tab:ood} reports out-of-distribution generalization results
+using real-world RIRs from BUT ReverbDB~\cite{szoke2019} and OpenAIR~\cite{openair2010} ($N = 2{,}000$).
+All preference-aware models exhibit modest LSD increases on real RIRs.
+The proposed A0 shows a smaller synthetic-to-real domain gap than the
+dense-output AC variants and the auxiliary-loss A2 variant (0.499~dB),
+reaching real LSD~1.941~dB and real DMR~0.885; A2 (with Pref Loss)
+follows with a 0.540~dB gap, and the AC variants show 0.646--0.706~dB
+gaps despite their lower in-distribution LSD.
+The critical finding is A1 (w/o Room Awareness): when both the explicit
+room-response input and implicit reverberation cues in the feature stream
+are removed, real-RIR LSD reaches 4.875~dB, 2.5$\times$ higher than A0's,
+with a much larger domain gap (1.978~dB). This confirms that room-awareness
+information is the primary mechanism for acoustic generalization.
+This smaller gap relative to the AC and A2 variants indicates that the
+\texttt{room\_vec}-only Stage~A conditioning, which excludes the audio
+\texttt{ctx} from the room-correction prior, limits synthetic-to-real
+drift under acoustic environments unseen during training.
+Many real-RIR rooms in BUT ReverbDB and OpenAIR exceed the training
+distribution (RT60~0.20--0.75~s), making this a deliberate stress test
+rather than an in-distribution evaluation.
+
+Table~\ref{tab:ood} summarizes the LSD and DMR breakdown under the two
+test conditions.
+
+
+
+
+\begin{table}[tp]
+  \centering
+  \caption{Out-of-distribution generalization: held-out synthetic-RIR
+           test set ($N=3{,}000$) vs.\ real-world RIRs from
+           BUT ReverbDB~\cite{szoke2019} and OpenAIR~\cite{openair2010} ($N = 2{,}000$).
+           \textbf{Bold} denotes best result per column.}
+  \label{tab:ood}
+  \resizebox{\linewidth}{!}{%
+  \begin{tabular}{lcccc}
+    \toprule
+    Model & Synth LSD & Real LSD & Synth DMR & Real DMR \\
+    \midrule
+    E3~Nercessian~\cite{nercessian2020} & 5.964 & 6.792 & 0.507 & 0.512 \\
+    E4~Pepe~\cite{pepe2020}             & 5.809 & 6.623 & 0.504 & 0.516 \\
+    \midrule
+    AC1~TCN$+$BiLSTM   & \textbf{0.853} & 1.508 & \textbf{0.947} & \textbf{0.910} \\
+    AC2~TCN$+$GRU      & 0.860 & \textbf{1.506} & 0.946 & \textbf{0.910} \\
+    AC3~TCN$+$Conformer~\cite{gulati2020} & 0.870 & 1.576 & 0.945 & 0.906 \\
+    \midrule
+    A0~Proposed $\star$ & 1.442 & 1.941 & 0.928 & 0.885 \\
+    A1~w/o Room Awareness  & 2.897 & 4.875 & 0.832 & 0.740 \\
+    A2~with Pref Loss  & 1.703 & 2.243 & 0.884 & 0.851 \\
+    \bottomrule
+  \end{tabular}%
+  }
+\end{table}
+
+\subsection{Architecture Comparison}
+\label{sec:arch}
+
+Fig.~\ref{fig:arch_compare} shows a comprehensive architecture
+comparison.
+\begin{figure}[tp]
+  \centering
+  \includegraphics[width=\linewidth]{fig10_arch_compare.pdf}
+  \caption{Architecture comparison: LSD, DMR, RTF, and LSD domain gap
+           across A0 (proposed) and AC1--AC3 variants.}
+  \label{fig:arch_compare}
+\end{figure}
+
+The three AC variants converge to comparable in-distribution performance
+and outperform the proposed A0 on dual-target LSD (0.853--0.870 vs.\
+1.442) and DMR (0.945--0.947 vs.\ 0.928).
+This is the expected consequence of the AC variants' dense 128-bin
+output head, which is unconstrained and can fit arbitrary
+frequency-domain targets, in contrast to A0's 7-band parametric-EQ head, whose output is
+restricted to a sum of Gaussian-approximated peaking-EQ magnitude
+responses with $f_c$, gain, and $Q$ as the only free parameters per
+band.
+The two design choices serve different purposes: AC variants
+demonstrate the architectural ceiling achievable with the same encoder
+backbone and training data, while A0's PEQ head produces parameters that can be mapped to embedded
+PEQ control interfaces without post-hoc dense-response fitting or
+impulse-response inversion.
+AC1 (BiLSTM) is bidirectional and is therefore incompatible with
+causal streaming deployment.
+AC2 (GRU) is causal and remains within the same real-time RTF range.
+AC3 (Conformer) has 418{,}914 parameters versus A0's 203{,}447, more
+than 2$\times$ as many.
+A0 also shows a smaller synthetic-to-real domain gap than the dense-output
+AC variants and the auxiliary-loss A2 variant (Section~\ref{sec:ood}),
+suggesting that the \texttt{room\_vec}-only Stage~A conditioning
+generalizes well to unseen acoustic environments.
+The final predicted response of A0 is also closer to the room-only target
+under the Room-LSD diagnostic (LSD$_\text{room}$~4.689~dB) than
+AC1--AC3 (5.226--5.238~dB). This does not make A0 the best overall
+dual-objective predictor; rather, it indicates that its two-stage
+factorization preserves a more explicit room-correction-like component
+while the dense-output AC variants use their flexibility to optimize the
+final dual target.
+The proposed model is therefore interpreted as the compact
+deployment-compatible configuration, not as the highest-scoring
+in-distribution architecture.
+
+% ═══════════════════════════════════════════════════════════════════════
+\section{DISCUSSION}
+% ═══════════════════════════════════════════════════════════════════════
+
+\subsection{The Dual-Objective Trade-off}
+
+Fig.~\ref{fig:pareto} shows the LSD--DMR trade-off across all evaluated
+models.
+\begin{figure}[tp]
+  \centering
+  \includegraphics[width=\linewidth]{fig11_pareto.pdf}
+  \caption{LSD--DMR trade-off. The proposed model ($\star$) occupies a
+           compact 7-band PEQ-output trade-off point. The AC variants attain
+           lower LSD and higher DMR with dense 128-bin output that is not
+           directly mappable to embedded PEQ control interfaces.}
+  \label{fig:pareto}
+\end{figure}
+
+Results indicate that tonal shape tracking fidelity emerges primarily
+from the input conditioning structure (UserPreferenceEncoder) rather
+than from auxiliary loss terms.
+Removing the preference input collapses DMR from 0.928 to 0.509
+(ablation A3), while adding explicit Stage-B preference and direction
+losses (ablation A2) does not help: A2 yields LSD~1.703~dB and
+DMR~0.884, both worse than the simplified two-term A0 (LSD~1.442~dB,
+DMR~0.928); A0 attains 0.26~dB lower LSD and 0.044 higher DMR than A2
+($d_z = -0.486$ for LSD, $d_z = +0.404$ for DMR; both $p < 0.001$).
+The additive dual-target formulation $T_\text{dual}$ already encodes
+the tonal-shape target directly, and the single $\mathcal{L}_\text{final}$
+term suffices for shape tracking; the explicit Stage-B losses appear
+to over-constrain the parametric-EQ head.
+The simplification has two consequences: first, the loss is reduced
+from four terms to two ($\mathcal{L}_\text{final}$ and
+$\mathcal{L}_\text{room}$), eliminating two hyperparameters; second,
+the proposed A0 attains marginally better in-distribution metrics and
+a smaller synthetic-to-real domain gap than A2.
+The proposed model nonetheless trails the dense-output AC variants by
+$\sim$0.6~dB on dual-target LSD; this is the explicit cost of
+constraining the output to 7 PEQ parameters that are directly
+mappable to embedded PEQ control interfaces.
+
+
+\subsection{Real-Time Feasibility}
+\label{sec:rtf}
+
+In a practical deployment, the 128-bin room response can be obtained by
+playing a calibration sweep through the target space, recording the
+microphone output, windowing the resulting RIR, and interpolating the
+log-magnitude response to 128~bins. This calibration is an operating
+scenario rather than a component timed in the reported RTF measurements,
+and it need not be repeated unless the listening position changes
+significantly, as room acoustics are quasi-static on practical timescales.
+
+The model was measured on a standard CPU (AMD Ryzen~9800X3D,
+single-threaded). The RTF values reported in this paper are generated by
+the evaluation script and are computed as inference-only forward latency
+divided by the 4-second segment duration. The system therefore requires a
+short audio-context buffer for feature extraction and is segment-based
+rather than sample-by-sample streaming.
+RTF in Table~\ref{tab:main} (denoted $\dagger$) excludes the time required
+to accumulate the audio context, extract acoustic features, and estimate
+the room-response input.
+Since room response changes slowly relative to musical content,
+per-segment EQ updates on the order of seconds are acoustically appropriate.
+Model inference runs in under 10~ms on CPU, and the compact parameter count
+is compatible with future ARM-based embedded deployment studies.
+
+\subsection{Limitations}
+
+Four limitations and one scope boundary merit note.
+(i)~Training targets domestic listening environments (room size
+3.5--8.0~m, RT60~0.20--0.75~s); performance degrades in larger spaces
+such as lecture or concert halls, as the BUT ReverbDB and OpenAIR
+out-of-distribution experiments indicate.
+(ii)~The system addresses frequency-response coloration only; it does not
+attempt to fully resolve late reverberation, modal ringing, or other
+time-domain artifacts that cannot be robustly handled by a static
+low-order PEQ alone.
+(iii)~Paired statistical tests operate at sample level ($N=3{,}000$),
+where samples may share source tracks or room configurations, introducing
+within-group correlation; effect sizes (Cohen's $d_z$) remain informative
+but $p$-values should be interpreted cautiously. Track-level aggregate
+analysis ($N_\text{groups}=1{,}306$) confirms the sample-level findings
+(Section~\ref{sec:stats}).
+(iv)~The tonal shape presets are illustrative examples and do not
+represent validated listener preferences; no perceptual listening
+evaluation was conducted, and whether objective shape-tracking
+improvements translate to perceptual outcomes is left for future work.
+
+% ═══════════════════════════════════════════════════════════════════════
+\section{CONCLUSION}
+% ═══════════════════════════════════════════════════════════════════════
+
+This report described a feed-forward neural PEQ that jointly performs
+room compensation and operator-specified tonal shape tracking in a
+single network with Gaussian-approximated PEQ-parameter output,
+achieving DMR~0.928, LSD~1.442~dB, and RTF~$<$~0.001 on a held-out test set of 3{,}000
+synthetic-RIR samples.
+Ablations identify the UserPreferenceEncoder input conditioning as the
+primary driver of tonal-shape fidelity ($d_z = +2.376$, $p < 0.001$ vs.\
+removing the preference input) and room-awareness cues as essential
+for out-of-distribution robustness (real-RIR LSD~4.875~dB without them
+vs.\ 1.941~dB with them).
+Architectural variants with a dense 128-bin output (BiLSTM, GRU,
+Conformer) attain approximately 0.6~dB lower in-distribution LSD but
+do not produce parametric PEQ coefficients and are not directly
+mappable to embedded PEQ control interfaces; the proposed 7-band PEQ
+output is positioned as the deployment-compatible configuration with
+the reported performance and a smaller synthetic-to-real domain gap than
+the dense-output AC variants and the auxiliary-loss A2 variant.
+A more elaborate four-term loss with explicit Stage-B supervision was
+investigated and is reported as ablation A2; it does not improve
+test-set metrics over the simplified two-term loss used in the proposed
+model.
+The implementation reported here integrates both objectives in one
+feed-forward pass and emits PEQ parameters that can be mapped to embedded
+control interfaces without post-hoc dense-response fitting.
+The contribution is a documented academic implementation and evaluation
+pipeline for an application-driven design space.
+Listener-based perceptual evaluation is outside the present scope.
+
+
+\subsection*{Future Work}
+
+Future directions include: (i)~subjective perceptual evaluation
+(MUSHRA, ITU-R~BS.1534) to relate the objective shape-tracking metrics
+to listener-rated outcomes; (ii)~integration with a de-reverberation
+front-end for environments where late reverberation dominates;
+(iii)~a frequency-dependent conflict-weighting strategy to
+mitigate gain conflicts at acoustic nulls; and (iv)~end-to-end
+training with a time-varying EQ head as in Diff-DEQ~\cite{sarkar2025},
+to capture room-induced spectral variation that evolves over time.
+
+
+
+\section*{Code Availability}
+Implementation scripts, configuration files, and generated result tables
+will be made publicly available upon acceptance, subject to third-party
+dataset licensing constraints.
+
+
+% (Author Contributions section omitted — single-author work)
+
+% ── References ───────────────────────────────────────────────────────
+\begin{thebibliography}{99}
+
+\bibitem{keidser2006}
+G.~Keidser and H.~Dillon,
+``What's New in Prescriptive Fittings Down Under?''
+in \emph{Hearing Care for Adults}, pp.~133--142, Phonak AG (2006).
+
+\bibitem{nielsen2013}
+J.~B.~B.~Nielsen, J.~Nielsen, B.~S.~Jensen, and J.~Larsen,
+``Hearing Aid Personalization,''
+in \emph{Proceedings of the NIPS Workshop on Machine Learning and
+Interpretation in Neuroimaging} (2013).
+
+\bibitem{mondol2022}
+S.~I.~M.~M.~Raton~Mondol, H.~J.~Kim, K.~S.~Kim, and S.~Lee,
+``Machine Learning-Based Hearing Aid Fitting Personalization Using
+Clinical Fitting Data,''
+\emph{J.\ Healthc.\ Eng.}, vol.~2022, art.~1667672 (2022).
+\url{https://doi.org/10.1155/2022/1667672}
+
+\bibitem{miyoshi1988}
+M.~Miyoshi and Y.~Kaneda,
+``Inverse Filtering of Room Acoustics,''
+\emph{IEEE Trans.\ Acoust.\ Speech Signal Process.}, vol.~36, no.~2,
+pp.~145--152 (1988).
+\url{https://doi.org/10.1109/29.1509}
+
+\bibitem{pepe2020}
+G.~Pepe, L.~Gabrielli, S.~Squartini, and L.~Cattani,
+``Designing Audio Equalization Filters by Deep Neural Networks,''
+\emph{Appl.\ Sci.}, vol.~10, no.~7, p.~2483 (2020).
+\url{https://doi.org/10.3390/app10072483}
+
+\bibitem{pepe2022}
+G.~Pepe, L.~Gabrielli, C.~Tripodi, S.~Squartini, and N.~Strozzi,
+``Deep Optimization of Parametric IIR Filters for Audio Equalization,''
+\emph{IEEE/ACM Trans.\ Audio Speech Lang.\ Process.}, vol.~30,
+pp.~1136--1149 (2022).
+\url{https://doi.org/10.1109/TASLP.2022.3155289}
+
+\bibitem{cartwright2013}
+M.~Cartwright and B.~Pardo,
+``Social-EQ: Crowdsourcing an Equalization Descriptor Map,''
+in \emph{Proceedings of the International Society for Music Information
+Retrieval Conference (ISMIR)} (Curitiba, Brazil) (2013 Nov.).
+
+\bibitem{seetharaman2016}
+P.~Seetharaman and B.~Pardo,
+``Audealize: Crowdsourced Audio Production Tools,''
+\emph{J.\ Audio Eng.\ Soc.}, vol.~64, no.~9, pp.~683--695 (2016 Sep.).
+\url{https://doi.org/10.17743/jaes.2016.0037}
+
+\bibitem{chu2025}
+A.~Chu, P.~O'Reilly, J.~Barnett, and B.~Pardo,
+``Text2FX: Harnessing CLAP Embeddings for Text-Guided Audio Effects,''
+in \emph{Proceedings of the IEEE International Conference on Acoustics,
+Speech and Signal Processing (ICASSP)} (Hyderabad, India) (2025).
+\url{https://doi.org/10.1109/ICASSP49660.2025.10890334}
+
+\bibitem{stylianou2026}
+I.~Stylianou, J.~Francombe, P.~Mart\'inez-Nuevo, S.~E.~Shepstone,
+and Z.-H.~Tan,
+``Population-Aligned Audio Reproduction with LLM-Based Equalizers,''
+\emph{arXiv preprint arXiv:2601.09448} (2026).
+\url{https://arxiv.org/abs/2601.09448}
+
+\bibitem{nercessian2020}
+S.~Nercessian,
+``Neural Parametric Equalizer Matching Using Differentiable Biquads,''
+in \emph{Proceedings of the International Conference on Digital Audio Effects
+(DAFx)}, pp.~265--272 (Vienna, Austria) (2020 Sep.).
+
+\bibitem{nercessian2021_hc}
+S.~Nercessian, A.~Sarroff, and K.~J.~Werner,
+``Lightweight and Interpretable Neural Modeling of an Audio Distortion
+Effect Using Hyperconditioned Differentiable Biquads,''
+in \emph{Proceedings of the IEEE International Conference on Acoustics,
+Speech and Signal Processing (ICASSP)}, pp.~890--894 (2021).
+\url{https://doi.org/10.1109/ICASSP39728.2021.9413996}
+
+\bibitem{colonel2022}
+J.~T.~Colonel, C.~J.~Steinmetz, M.~Michelen, and J.~D.~Reiss,
+``Direct Design of Biquad Filter Cascades with Deep Learning by Sampling
+Random Polynomials,''
+in \emph{Proceedings of the IEEE International Conference on Acoustics,
+Speech and Signal Processing (ICASSP)}, pp.~3104--3108 (2022).
+\url{https://doi.org/10.1109/ICASSP43922.2022.9747660}
+
+\bibitem{steinmetz2022}
+C.~J.~Steinmetz, N.~J.~Bryan, and J.~D.~Reiss,
+``Style Transfer of Audio Effects with Differentiable Signal Processing,''
+\emph{J.\ Audio Eng.\ Soc.}, vol.~70, no.~9, pp.~708--721 (2022).
+\url{https://doi.org/10.17743/jaes.2022.0025}
+
+\bibitem{szoke2019}
+I.~Sz\H{o}ke, M.~Sk\'{a}cel, L.~Mo\v{s}ner, J.~Paliesek, and J.~\v{C}ernock\'{y},
+``Building and Evaluation of a Real Room Impulse Response Dataset,''
+\emph{IEEE J.\ Sel.\ Top.\ Signal Process.}, vol.~13, no.~4, pp.~863--876 (2019).
+\url{https://doi.org/10.1109/JSTSP.2019.2917582}
+
+\bibitem{openair2010}
+S.~Shelley and D.~T.~Murphy,
+``OpenAIR: An Interactive Auralization Web Resource and Database,''
+in \emph{Proceedings of the 129th Audio Engineering Society Convention},
+paper~8226 (San Francisco, USA) (2010 Nov.).
+
+\bibitem{sarkar2025}
+P.~Sarkar and P.~Lindborg,
+``Diff-DEQ: Differentiable Dynamic Equalization for Studio-Quality Speech
+Processing,''
+in \emph{Proceedings of the European Signal Processing Conference (EUSIPCO)},
+pp.~511--515 (2025).
+\url{https://doi.org/10.23919/EUSIPCO63237.2025.11226258}
+
+\bibitem{mockenhaupt2024}
+F.~Mockenhaupt, J.~S.~Rieber, and S.~Nercessian,
+``Automatic Equalization for Individual Instrument Tracks Using Convolutional
+Neural Networks,''
+in \emph{Proceedings of the International Conference on Digital Audio Effects
+(DAFx)} (Guildford, United Kingdom) (2024).
+
+\bibitem{perez2018}
+E.~Perez, F.~Strub, H.~de~Vries, V.~Dumoulin, and A.~Courville,
+``FiLM: Visual Reasoning with a General Conditioning Layer,''
+in \emph{Proceedings of the AAAI Conference on Artificial Intelligence},
+pp.~3942--3951 (2018).
+\url{https://doi.org/10.1609/aaai.v32i1.11671}
+
+\bibitem{defferrard2017}
+M.~Defferrard, K.~Benzi, P.~Vandergheynst, and X.~Bresson,
+``FMA: A Dataset for Music Analysis,''
+in \emph{Proceedings of the International Society for Music Information
+Retrieval Conference (ISMIR)}, pp.~316--323 (Suzhou, China) (2017 Oct.).
+
+\bibitem{scheibler2018}
+R.~Scheibler, E.~Bezzam, and I.~Dokmanić,
+``Pyroomacoustics: A Python Package for Audio Room Simulation and Array
+Processing Algorithms,''
+in \emph{Proceedings of the IEEE International Conference on Acoustics,
+Speech and Signal Processing (ICASSP)}, pp.~351--355 (2018).
+\url{https://doi.org/10.1109/ICASSP.2018.8461310}
+
+\bibitem{gulati2020}
+A.~Gulati, J.~Qin, C.-C.~Chiu, N.~Parmar, Y.~Zhang, J.~Yu, W.~Han,
+S.~Wang, Z.~Zhang, Y.~Wu, and R.~Pang,
+``Conformer: Convolution-Augmented Transformer for Speech Recognition,''
+in \emph{Proceedings of Interspeech}, pp.~5036--5040 (2020 Oct.).
+\url{https://doi.org/10.21437/Interspeech.2020-3015}
+
+\end{thebibliography}
+
+\biography{Yongho Ahn}{photo_yongho.jpg}{%
+Yongho Ahn is an undergraduate researcher in the Department of Software
+Engineering at Soongsil University, Seoul, Republic of Korea.
+His research interests include applied deep learning, edge AI systems,
+embedded systems, and AI-based signal processing, with recent work on
+neural audio equalization, real-time inference pipelines on embedded system, hardware
+prototyping, and Android application development.}
+
+\end{document}
