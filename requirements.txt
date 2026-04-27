@@ -5,5 +5,5 @@ matplotlib
 torch
 librosa
 soundfile
-pyroomaccoustics
+pyroomacoustics
 tqdm
