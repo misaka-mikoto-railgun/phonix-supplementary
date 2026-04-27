@@ -15,6 +15,15 @@ Project status
 - Negative ablation with preference loss: `A2_withPrefLoss`
 - Dataset target grid: log-spaced `20 Hz` to `24 kHz`, `128` bins
 
+Model naming and loss mapping
+-----------------------------
+
+- `A0_Proposed`: canonical proposed model. Loss = `lambda_final=1.0`, `lambda_room=0.35`, `lambda_pref_res=0.0`, `lambda_dir=0.0`.
+- `A2_withPrefLoss`: canonical negative ablation. Loss = `A0_Proposed` + `lambda_pref_res=0.25` + `lambda_dir=0.15`.
+- `A2_NoPrefLoss`: legacy checkpoint/model name for what is now `A0_Proposed`.
+- `A0_Full`: legacy checkpoint/model name for what is now `A2_withPrefLoss`.
+- `DualObjectiveEQLoss()` now defaults to the `A0_Proposed` setting. Any `A2_withPrefLoss` usage should pass its preference-term weights explicitly.
+
 Requirements
 ------------
 
