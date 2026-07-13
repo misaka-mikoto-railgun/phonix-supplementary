@@ -1,0 +1,6 @@
+﻿Condition,LSD
+OptA ±6 (SciPy),1.026
+OptA ±12 (SciPy),0.918
+"OptC ±12 (retrain, AC2)",1.017
+OptD (naive 7pt),7.755
+dense AC2 (raw),0.86

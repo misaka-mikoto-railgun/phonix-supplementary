@@ -1378,20 +1378,26 @@ from arch_variants import AC1_TCNBiLSTM, AC2_TCNGRU, AC3_TCNConformer
 from baselines import E3_NercessianMLP, E4_PepeCNN, E5_Sequential, E6_DSP_Analytical
 from model import DualObjectiveAdaptivePEQ
 from ablation import A1_NoRoomInput, A3_NoPrefInput
+from arch_biquad import AC1_BiLSTM_Biquad, AC2_GRU_Biquad, AC3_Conformer_Biquad
 MODEL_REGISTRY = {
-    "A0_Proposed":    DualObjectiveAdaptivePEQ,
-    "A1_NoRoomInput": A1_NoRoomInput,
-    "A2_withPrefLoss": DualObjectiveAdaptivePEQ,
-    "A3_NoPrefInput": A3_NoPrefInput,
-    "E1_NoEQ":        E1_NoProcessing,
-    "E2_StaticEQ":    E2_StaticModeEQ,
-    "E3_Nercessian":  E3_NercessianMLP,
-    "E4_Pepe":        E4_PepeCNN,
-    "E5_Sequential":  E5_Sequential,
-    "E6_DSP":         E6_DSP_Analytical,
-    "AC1_BiLSTM":     AC1_TCNBiLSTM,
-    "AC2_GRU":        AC2_TCNGRU,
-    "AC3_Conformer":  AC3_TCNConformer,
+    # REVISION(gain±12): A0/A2 use the relaxed per-section gain bound (±12 dB);
+    # fc_max stays 16 kHz. Lambdas so load_model's MODEL_REGISTRY[name]() passes args.
+    "A0_Proposed":         lambda: DualObjectiveAdaptivePEQ(gain_max=12.0, fc_max=16000.0),
+    "A1_NoRoomInput":      A1_NoRoomInput,
+    "A2_withPrefLoss":     lambda: DualObjectiveAdaptivePEQ(gain_max=12.0, fc_max=16000.0),
+    "A3_NoPrefInput":      A3_NoPrefInput,
+    "E1_NoEQ":             E1_NoProcessing,
+    "E2_StaticEQ":         E2_StaticModeEQ,
+    "E3_Nercessian":       E3_NercessianMLP,
+    "E4_Pepe":             E4_PepeCNN,
+    "E5_Sequential":       E5_Sequential,
+    "E6_DSP":              E6_DSP_Analytical,
+    "AC1_BiLSTM":          AC1_TCNBiLSTM,
+    "AC2_GRU":             AC2_TCNGRU,
+    "AC3_Conformer":       AC3_TCNConformer,
+    "AC1_BiLSTM_Biquad":   AC1_BiLSTM_Biquad,
+    "AC2_GRU_Biquad":      AC2_GRU_Biquad,
+    "AC3_Conformer_Biquad": AC3_Conformer_Biquad,
 }
 
 
@@ -1546,6 +1552,15 @@ def main():
         np.save(stat_dir / f"{name}_real_lsd_pref.npy",  results_real[name]["lsd_pref_arr"])
         np.save(stat_dir / f"{name}_real_dmr.npy",       results_real[name]["dmr_arr"])
         np.save(stat_dir / f"{name}_real_cossim.npy",    results_real[name]["cossim_arr"])
+        # perceptual proxy 분석용 raw pred 저장 (perceptual_proxy.py 에서 사용)
+        np.save(stat_dir / f"{name}_pred.npy",      results_synth[name]["pred_all"])
+        np.save(stat_dir / f"{name}_rtf.npy",       np.array([results_synth[name]["rtf"]]))
+
+    # 타겟 곡선 1회 저장 (perceptual_proxy.py 공유 입력)
+    if "A2_withPrefLoss" in results_synth:
+        np.save(stat_dir / "targets_dual.npy",  data_synth["dual_target"].cpu().numpy())
+        np.save(stat_dir / "targets_pref.npy",  data_synth["pref_target"].cpu().numpy())
+        np.save(stat_dir / "targets_room.npy",  data_synth["room_target"].cpu().numpy())
 
     # ── 표 생성 ───────────────────────────────────────────────
     print("\n[3/4] Generating tables...")
@@ -1579,9 +1594,13 @@ def main():
                    "Table 4: Out-of-distribution generalization (BUT ReverbDB)")
         print(t4.to_string(index=False))
 
-    tA1 = build_tableA1(tab_dir / "tableA1_fairness.csv")
-    save_table(tA1, tab_dir, "tableA1_fairness",
-               "Table A1: Feature dimension ablation for E3/E4")
+    # REVISION: 보조 fairness 표는 alpha_sweep 선행 산출물 의존 → 없으면 스킵(피규어 차단 방지)
+    try:
+        tA1 = build_tableA1(tab_dir / "tableA1_fairness.csv")
+        save_table(tA1, tab_dir, "tableA1_fairness",
+                   "Table A1: Feature dimension ablation for E3/E4")
+    except FileNotFoundError as e:
+        print(f"  [skip tableA1] {e}")
 
     # ── Figure 생성 ───────────────────────────────────────────
     print("\n[4/4] Generating figures...")

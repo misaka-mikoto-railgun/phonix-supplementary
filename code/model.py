@@ -71,7 +71,8 @@ class DualObjectiveAdaptivePEQ(nn.Module):
     def __init__(self, in_dim=10, n_room_bins=128, room_dim=32,
                  hidden_dim=64, n_tcn_blocks=4, n_modes=4, n_bands=10, 
                  pref_dim=64, n_freqs=128, sample_rate=48000, n_peq_filters=7,
-                 f_min=20.0, f_max=None, freq_spacing="log", **kw):
+                 f_min=20.0, f_max=None, freq_spacing="log",
+                 gain_max=6.0, fc_min=80.0, fc_max=16000.0, **kw):
         super().__init__()
         if f_max is None:
             f_max = sample_rate / 2.0
@@ -121,8 +122,12 @@ class DualObjectiveAdaptivePEQ(nn.Module):
             freq_spacing=freq_spacing,
         )
 
-        self.fc_min, self.fc_max = 80.0, 16000.0
-        self.gain_max = 6.0
+        # NOTE(revision): center-freq / per-section gain bounds are now
+        # constructor args (defaults identical to the submitted ±6/[80,16k]
+        # model). fc_max here is the PEQ center-frequency upper bound and is
+        # SEPARATE from f_max above (the 24 kHz response-grid bound).
+        self.fc_min, self.fc_max = fc_min, fc_max
+        self.gain_max = gain_max
         self.q_min, self.q_max = 0.3, 8.0
 
         self.room_mean_scale = 4.0

@@ -1,152 +1,45 @@
-PHONIX Adaptive EQ
-==================
+# PHONIX Supplementary — Revision: per-section gain bound ±6 → ±12 dB
 
-This repository contains the code used for the PHONIX adaptive equalization experiments:
+Major-revision update to the JAES submission. Reviewer R1-8 noted the Stage-B
+hyperparameter bounds appeared arbitrary; we verified that the per-section gain
+bound of **±6 dB was binding** (57.8 % of learned gains saturated) and **relaxed
+it to ±12 dB** (center frequency kept at [80, 16000] Hz). All A0/A2 results were
+re-trained; gain-independent models (E1–E6, A1, A3, AC1–AC3 dense) were re-evaluated
+unchanged.
 
-- dataset generation on a shared 128-bin log-spaced frequency grid
-- model training for the proposed model, ablations, and baselines
-- paper figure/table regeneration
-- track-level paired comparison exports
+**Loss function and architecture are unchanged** — only the output gain bound was relaxed.
 
-Project status
---------------
+## Headline changes (±6 → ±12)
+- A0 synthetic LSD **1.442 → 1.095 dB**, real-RIR LSD **1.941 → 1.792 dB** (both improve → not overfitting).
+- gain saturation **57.8 % → 16.6 %**; 72.8 % of learned gains now exceed 6 dB (the old bound was suppressing them).
+- A0 vs retrained biquad-AC gap **~0.40 → ~0.08 dB** (deployment parity under identical 7-band ±12 constraint).
+- synthetic→real domain gap 0.499 → 0.697 dB — **within the AC variant range (0.646–0.706)**, no longer "smallest" (reframed as deployment parity).
+- A0 vs A2 (preference-loss ablation): comparable mean, but A0 is **3.2× more stable across seeds** (σ 0.14 vs 0.45).
 
-- Canonical proposed model: `A0_Proposed`
-- Negative ablation with preference loss: `A2_withPrefLoss`
-- Dataset target grid: log-spaced `20 Hz` to `24 kHz`, `128` bins
+## Reproducibility notes
+- A0 / A2 reported over **3 seeds (42, 123, 7)**; all other models retain the original single-seed (42) checkpoints (seed asymmetry noted in captions).
+- AC_Biquad follows the original single-seed + bootstrap-CI methodology.
+- **Gain-bound trap**: A0/A2 must be instantiated with `gain_max=12.0` when loading the ±12 checkpoints; a default `gain_max=6.0` instance silently clamps the output. `verify_patch.py` / `verify_biquad_patch.py` assert this.
+- Model checkpoints and the dataset are **not** included here (size); the evaluation scripts reference them by path.
 
-Model naming and loss mapping
------------------------------
-
-- `A0_Proposed`: canonical proposed model. Loss = `lambda_final=1.0`, `lambda_room=0.35`, `lambda_pref_res=0.0`, `lambda_dir=0.0`.
-- `A2_withPrefLoss`: canonical negative ablation. Loss = `A0_Proposed` + `lambda_pref_res=0.25` + `lambda_dir=0.15`.
-- `A2_NoPrefLoss`: legacy checkpoint/model name for what is now `A0_Proposed`.
-- `A0_Full`: legacy checkpoint/model name for what is now `A2_withPrefLoss`.
-- `DualObjectiveEQLoss()` now defaults to the `A0_Proposed` setting. Any `A2_withPrefLoss` usage should pass its preference-term weights explicitly.
-
-Requirements
-------------
-
-- Python 3.10+
-- PyTorch
-- NumPy / SciPy / pandas / matplotlib
-- librosa / soundfile
-
-Install:
-
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
+## Layout
+```
+code/          patched core (model, train_full, experiments, arch_biquad, ac_fitting_*) + new analysis scripts
+figures/       F1–F6 + fig_ac_fitting + fig_response_overlay + param_dist  (PNG + vector PDF)
+tables/        T1–T7 (consolidated) + table2–7 (per-metric CSVs)
+results_json/  raw metric outputs (gain_freq_summary, paired/track stats, ac_biquad, param_dist, fig_overlay_sample)
+docs/          inline_number_changes.md (manuscript value diffs), loss_equations.md (code-faithful loss)
 ```
 
-Repository layout
------------------
+## Key scripts
+| script | produces |
+|--------|----------|
+| `run_gain_freq_ablation.py` | ±12 A0/A2 training + gain/freq ablation (multi-seed) |
+| `verify_patch.py`, `verify_biquad_patch.py` | gain-bound assertion gates |
+| `table2_revision.py` … `table7_perceptual.py` | Tables 2–7 (synthetic/real, paired, track-level, OOD, perceptual) |
+| `ac_biquad_table.py`, `ac_gap_eval.py` | biquad-constrained comparison (§4.5) |
+| `param_dist_gain_freq.py` | gain/fc saturation two-criteria (Fig 1 / F1) |
+| `consolidate.py` | colorblind/B&W-safe figures F1–F6 |
+| `extract_overlay_sample.py`, `make_overlay_figure.py` | median-sample response overlay (fig_response_overlay) |
 
-- `model.py`: main A0 model and loss
-- `ablation.py`: A1/A2/A3 definitions
-- `baselines.py`: E-series baselines
-- `arch_variants.py`: AC-series architecture variants
-- `dataset_generator_v4_tracklevel.py`: dataset generation and dataset loader
-- `train_full.py`: multi-model training entrypoint
-- `experiments_fixed_updated.py`: paper figure/table regeneration
-- `export_track_level_predictions.py`: track-level dump and paired comparison export
-- `track_level_eval.py`: grouped paired statistics
-
-Important note on Fig. 1
-------------------------
-
-`experiments_fixed_updated.py` no longer emits `Fig. 1` automatically. The paper uses a manually prepared figure asset for Fig. 1, so the autogenerated `fig1_concept()` path is kept only as an internal reference and is disabled in the main script. Regenerated outputs therefore start from the figure assets used for `Fig. 2` onward.
-
-Dataset generation
-------------------
-
-Example:
-
-```bash
-python dataset_generator_v4_tracklevel.py --output_dir ./data/dataset_v3
-python check_frequency_grid_consistency.py --data_dir ./data/dataset_v3
-```
-
-Training
---------
-
-Train the canonical proposed model:
-
-```bash
-python train_full.py --data_dir ./data/dataset_v3 --only A0_Proposed
-```
-
-Train the negative ablation:
-
-```bash
-python train_full.py --data_dir ./data/dataset_v3 --only A2_withPrefLoss
-```
-
-Run the full suite:
-
-```bash
-python train_full.py --data_dir ./data/dataset_v3
-```
-
-Paper figures and tables
-------------------------
-
-Generate the fairness table first, then the main paper outputs:
-
-```bash
-python alpha_sweep.py --task fairness --data_dir ./data/dataset_v3 --ckpt_dir ./checkpoints/full --table_out_dir ./paper_outputs/tables
-python experiments_fixed_updated.py --data_dir ./data/dataset_v3 --ckpt_dir ./checkpoints/full --out_dir ./paper_outputs --models all
-```
-
-Table 3 statistics
-------------------
-
-`Table 3` is produced by `experiments_fixed_updated.py` as `paper_outputs/tables/table3_statistics.csv` once the main experiment suite finishes.
-
-Command:
-
-```bash
-python experiments_fixed_updated.py --data_dir ./data/dataset_v3 --ckpt_dir ./checkpoints/full --out_dir ./paper_outputs --models all
-```
-
-Track-level statistics
-----------------------
-
-Export raw prediction dumps only:
-
-```bash
-python export_track_level_predictions.py --data_dir ./data/dataset_v3 --split test_synth --ckpt_dir ./checkpoints/full --models all --candidates none --out_dir ./eval_reports/track_level_npz/test_synth_all
-```
-
-Export grouped paired comparisons with `A0_Proposed` as the baseline:
-
-```bash
-python export_track_level_predictions.py --data_dir ./data/dataset_v3 --split test_synth --ckpt_dir ./checkpoints/full --models A0_Proposed,A1_NoRoomInput,A2_withPrefLoss,A3_NoPrefInput,E1,E2,E3,E4,E5,E6,AC1,AC2,AC3 --baseline A0_Proposed --candidates A1_NoRoomInput,A2_withPrefLoss,A3_NoPrefInput,E1,E2,E3,E4,E5,E6,AC1,AC2,AC3 --group-key track_id --out_dir ./eval_reports/track_level_npz/test_synth_compare
-```
-
-OOD / real-RIR grouped comparisons:
-
-```bash
-python export_track_level_predictions.py --data_dir ./data/dataset_v3 --split test_real --ckpt_dir ./checkpoints/full --models A0_Proposed,A1_NoRoomInput,A2_withPrefLoss,A3_NoPrefInput,E1,E2,E3,E4,E5,E6,AC1,AC2,AC3 --baseline A0_Proposed --candidates A1_NoRoomInput,A2_withPrefLoss,A3_NoPrefInput,E1,E2,E3,E4,E5,E6,AC1,AC2,AC3 --group-key track_id --out_dir ./eval_reports/track_level_npz/test_real_compare
-```
-
-Paired mode-switch grouped comparisons:
-
-```bash
-python export_track_level_predictions.py --data_dir ./data/dataset_v3 --split paired_mode_test --ckpt_dir ./checkpoints/full --models A0_Proposed,A1_NoRoomInput,A2_withPrefLoss,A3_NoPrefInput,E1,E2,E3,E4,E5,E6,AC1,AC2,AC3 --baseline A0_Proposed --candidates A1_NoRoomInput,A2_withPrefLoss,A3_NoPrefInput,E1,E2,E3,E4,E5,E6,AC1,AC2,AC3 --group-key pair_id --out_dir ./eval_reports/track_level_npz/paired_mode_compare
-```
-
-Consolidated rerun workflow
----------------------------
-
-The repository also contains a one-shot rerun script used during the final refresh:
-
-```bash
-powershell -ExecutionPolicy Bypass -File .\reruns\a0_proposed_refresh_20260426\run_all_refresh.ps1
-```
-
-License
--------
-
-This repository is currently distributed under the MIT License. Review this choice before public release if a different license is required for accompanying data or paper assets.
+See `docs/inline_number_changes.md` for the full list of manuscript numeric values that change under ±12.

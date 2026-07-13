@@ -185,7 +185,8 @@ def build_registry() -> dict:
 
         # ── Proposed ───────────────────────────────────────────────────────
         "A0_Proposed": {
-            "model":  DualObjectiveAdaptivePEQ(),
+            # REVISION(gain±12): relaxed per-section gain bound; fc_max=16k 유지.
+            "model":  DualObjectiveAdaptivePEQ(gain_max=12.0, fc_max=16000.0),
             "loss":   a0_proposed_loss,
             "target": "dual",
             "group":  "Proposed",
@@ -208,7 +209,7 @@ def build_registry() -> dict:
             "note": "w/o room_response input + clean features",
         },
         "A2_withPrefLoss": {
-            "model":  DualObjectiveAdaptivePEQ(),   # 구조 동일
+            "model":  DualObjectiveAdaptivePEQ(gain_max=12.0, fc_max=16000.0),   # 구조 동일, REVISION(gain±12)
             "loss":   a2_with_pref_loss,
             "target": "dual",
             "group":  "Ablation",
