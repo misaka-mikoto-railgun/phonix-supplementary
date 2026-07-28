@@ -1,0 +1,640 @@
+{
+  "generated": "2026-06-22T20:40:02",
+  "fairness": {
+    "opset": 13,
+    "batch": 1,
+    "dynamic_axes": false,
+    "dtype": "float32",
+    "backbone_input_shape": [
+      1,
+      32,
+      10
+    ],
+    "conditional_inputs": {
+      "room_response": [
+        1,
+        128
+      ],
+      "mode_onehot": [
+        1,
+        4
+      ],
+      "band_gains": [
+        1,
+        10
+      ]
+    },
+    "interp_replaced_with_matmul": true,
+    "mode_embedding_replaced_with_onehot_matmul": true,
+    "host_preprocessing": "mode_onehot = one_hot(mode_id, 4) — host/C에서 trivial 인코딩(그래프 밖)"
+  },
+  "variants": [
+    {
+      "name": "A0_Proposed",
+      "group": "A0",
+      "onnx": "a0.onnx",
+      "checkpoint": "revision_gain_freq\\checkpoints\\A0_g12_f16k_s7.pt",
+      "seed": 7,
+      "gain_max": 12.0,
+      "fc_max": 16000.0,
+      "n_params": 203447,
+      "input_shape": {
+        "feat": [
+          1,
+          32,
+          10
+        ],
+        "room": [
+          1,
+          128
+        ],
+        "mode_onehot": [
+          1,
+          4
+        ],
+        "band": [
+          1,
+          10
+        ]
+      },
+      "output_shape": {
+        "room_corr": [
+          1,
+          128
+        ],
+        "fc": [
+          1,
+          7
+        ],
+        "gain": [
+          1,
+          7
+        ],
+        "q": [
+          1,
+          7
+        ]
+      },
+      "output_format": "room_corr[1,128] (dense room-correction dB) + fc/gain/q [1,7] (7-band biquad params)",
+      "graph_boundary": "input → {room_corr, fc, gain, q}.  peq_response(가우시안)·biquad 계수계산·pref_curve 합성은 그래프 밖.",
+      "excluded_postprocessing": "host/C: ①pref_curve = band_gains→128 선형보간, ②7-band closed-form biquad(RBJ) 계수계산 후 room_corr(dense)와 합성. 가우시안 재구성은 학습전용이라 미사용.",
+      "parity_max_abs_err": 0.001953125,
+      "gain_max_observed": 11.997346878051758,
+      "gain_over6_frac": 0.7748326063156128,
+      "gain_gate": "PASS",
+      "interp_matmul_pou_err": 0.0,
+      "onnx_ops": [
+        "Add",
+        "Concat",
+        "Conv",
+        "Div",
+        "Erf",
+        "Gemm",
+        "MatMul",
+        "Mul",
+        "Pow",
+        "ReduceMean",
+        "ReduceSum",
+        "Sigmoid",
+        "Slice",
+        "Softmax",
+        "Sqrt",
+        "Squeeze",
+        "Sub",
+        "Tanh",
+        "Transpose",
+        "Unsqueeze"
+      ],
+      "onnx_domains": [
+        "ai.onnx"
+      ],
+      "onnx_node_count": 270,
+      "cubeai_hard_blocker_ops": [],
+      "cubeai_verify_ops": [
+        "Erf",
+        "ReduceSum",
+        "Softmax"
+      ],
+      "macc_thop": 3344256
+    },
+    {
+      "name": "A2_withPrefLoss",
+      "group": "A2",
+      "onnx": "a2.onnx",
+      "checkpoint": "revision_gain_freq\\checkpoints\\A2_g12_f16k_s7.pt",
+      "seed": 7,
+      "gain_max": 12.0,
+      "fc_max": 16000.0,
+      "n_params": 203447,
+      "input_shape": {
+        "feat": [
+          1,
+          32,
+          10
+        ],
+        "room": [
+          1,
+          128
+        ],
+        "mode_onehot": [
+          1,
+          4
+        ],
+        "band": [
+          1,
+          10
+        ]
+      },
+      "output_shape": {
+        "room_corr": [
+          1,
+          128
+        ],
+        "fc": [
+          1,
+          7
+        ],
+        "gain": [
+          1,
+          7
+        ],
+        "q": [
+          1,
+          7
+        ]
+      },
+      "output_format": "room_corr[1,128] (dense room-correction dB) + fc/gain/q [1,7] (7-band biquad params)",
+      "graph_boundary": "input → {room_corr, fc, gain, q}.  peq_response(가우시안)·biquad 계수계산·pref_curve 합성은 그래프 밖.",
+      "excluded_postprocessing": "host/C: ①pref_curve = band_gains→128 선형보간, ②7-band closed-form biquad(RBJ) 계수계산 후 room_corr(dense)와 합성. 가우시안 재구성은 학습전용이라 미사용.",
+      "parity_max_abs_err": 0.001220703125,
+      "gain_max_observed": 11.998007774353027,
+      "gain_over6_frac": 0.4885602593421936,
+      "gain_gate": "PASS",
+      "interp_matmul_pou_err": 0.0,
+      "onnx_ops": [
+        "Add",
+        "Concat",
+        "Conv",
+        "Div",
+        "Erf",
+        "Gemm",
+        "MatMul",
+        "Mul",
+        "Pow",
+        "ReduceMean",
+        "ReduceSum",
+        "Sigmoid",
+        "Slice",
+        "Softmax",
+        "Sqrt",
+        "Squeeze",
+        "Sub",
+        "Tanh",
+        "Transpose",
+        "Unsqueeze"
+      ],
+      "onnx_domains": [
+        "ai.onnx"
+      ],
+      "onnx_node_count": 270,
+      "cubeai_hard_blocker_ops": [],
+      "cubeai_verify_ops": [
+        "Erf",
+        "ReduceSum",
+        "Softmax"
+      ],
+      "macc_thop": 3344256
+    },
+    {
+      "name": "E3_Nercessian",
+      "group": "E",
+      "onnx": "e3_nercessian.onnx",
+      "checkpoint": "checkpoints\\full\\E3_Nercessian.pt",
+      "seed": 42,
+      "gain_max": 12.0,
+      "fc_max": 24000.0,
+      "n_params": 138255,
+      "input_shape": {
+        "feat": [
+          1,
+          32,
+          10
+        ]
+      },
+      "output_shape": {
+        "fc": [
+          1,
+          5
+        ],
+        "gain": [
+          1,
+          5
+        ],
+        "q": [
+          1,
+          5
+        ]
+      },
+      "output_format": "fc/gain/q [1,5] (5-band parametric PEQ params)",
+      "graph_boundary": "input → {fc, gain, q}.  response(가우시안)·biquad 계수계산은 그래프 밖.",
+      "excluded_postprocessing": "host/C: 5-band closed-form biquad 계수계산. 가우시안 재구성은 학습전용.",
+      "parity_max_abs_err": 0.00146484375,
+      "gain_max_observed": 7.188028335571289,
+      "gain_over6_frac": 0.800000011920929,
+      "gain_gate": "n/a (구조적 ±12, trap 없음)",
+      "interp_matmul_pou_err": null,
+      "onnx_ops": [
+        "Add",
+        "Gemm",
+        "Mul",
+        "ReduceMean",
+        "Relu",
+        "Sigmoid",
+        "Slice",
+        "Tanh"
+      ],
+      "onnx_domains": [
+        "ai.onnx"
+      ],
+      "onnx_node_count": 19,
+      "cubeai_hard_blocker_ops": [],
+      "cubeai_verify_ops": [],
+      "macc_thop": 137472
+    },
+    {
+      "name": "E4_Pepe",
+      "group": "E",
+      "onnx": "e4_pepe.onnx",
+      "checkpoint": "checkpoints\\full\\E4_Pepe.pt",
+      "seed": 42,
+      "gain_max": 12.0,
+      "fc_max": 24000.0,
+      "n_params": 50351,
+      "input_shape": {
+        "feat": [
+          1,
+          32,
+          10
+        ]
+      },
+      "output_shape": {
+        "fc": [
+          1,
+          5
+        ],
+        "gain": [
+          1,
+          5
+        ],
+        "q": [
+          1,
+          5
+        ]
+      },
+      "output_format": "fc/gain/q [1,5] (5-band parametric PEQ params)",
+      "graph_boundary": "input → {fc, gain, q}.  response(가우시안)·biquad 계수계산은 그래프 밖.",
+      "excluded_postprocessing": "host/C: 5-band closed-form biquad 계수계산. 가우시안 재구성은 학습전용.",
+      "parity_max_abs_err": 0.00146484375,
+      "gain_max_observed": 11.652302742004395,
+      "gain_over6_frac": 0.23281249403953552,
+      "gain_gate": "n/a (구조적 ±12, trap 없음)",
+      "interp_matmul_pou_err": null,
+      "onnx_ops": [
+        "Add",
+        "Conv",
+        "Gemm",
+        "GlobalAveragePool",
+        "Mul",
+        "Relu",
+        "Sigmoid",
+        "Slice",
+        "Squeeze",
+        "Tanh",
+        "Transpose"
+      ],
+      "onnx_domains": [
+        "ai.onnx"
+      ],
+      "onnx_node_count": 23,
+      "cubeai_hard_blocker_ops": [],
+      "cubeai_verify_ops": [],
+      "macc_thop": 1036288
+    },
+    {
+      "name": "E5_Sequential",
+      "group": "E",
+      "onnx": "e5_sequential.onnx",
+      "checkpoint": "checkpoints\\full\\E5_Sequential.pt",
+      "seed": 42,
+      "gain_max": 12.0,
+      "fc_max": 24000.0,
+      "n_params": 138255,
+      "input_shape": {
+        "feat": [
+          1,
+          32,
+          10
+        ]
+      },
+      "output_shape": {
+        "fc": [
+          1,
+          5
+        ],
+        "gain": [
+          1,
+          5
+        ],
+        "q": [
+          1,
+          5
+        ]
+      },
+      "output_format": "fc/gain/q [1,5] (내부 E3 room-corrector; E2 pref는 고정 테이블/비신경망)",
+      "graph_boundary": "input → {fc, gain, q}(E3).  E2 테이블 합산은 그래프 밖.",
+      "excluded_postprocessing": "host/C: 5-band closed-form biquad(E3) + 고정 모드 프로파일(E2) 합산.",
+      "parity_max_abs_err": 0.001953125,
+      "gain_max_observed": 5.612678527832031,
+      "gain_over6_frac": 0.0,
+      "gain_gate": "n/a (구조적 ±12, trap 없음)",
+      "interp_matmul_pou_err": null,
+      "onnx_ops": [
+        "Add",
+        "Gemm",
+        "Mul",
+        "ReduceMean",
+        "Relu",
+        "Sigmoid",
+        "Slice",
+        "Tanh"
+      ],
+      "onnx_domains": [
+        "ai.onnx"
+      ],
+      "onnx_node_count": 19,
+      "cubeai_hard_blocker_ops": [],
+      "cubeai_verify_ops": [],
+      "macc_thop": 137472
+    },
+    {
+      "name": "AC1_BiLSTM_Biquad",
+      "group": "AC",
+      "onnx": "ac1_bilstm_biquad.onnx",
+      "checkpoint": "revision_gain_freq\\checkpoints\\AC1_BiLSTM_Biquad_g12.pt",
+      "seed": null,
+      "gain_max": 12.0,
+      "fc_max": 16000.0,
+      "n_params": 240758,
+      "input_shape": {
+        "feat": [
+          1,
+          32,
+          10
+        ],
+        "room": [
+          1,
+          128
+        ],
+        "mode_onehot": [
+          1,
+          4
+        ],
+        "band": [
+          1,
+          10
+        ]
+      },
+      "output_shape": {
+        "room_corr": [
+          1,
+          128
+        ],
+        "fc": [
+          1,
+          7
+        ],
+        "gain": [
+          1,
+          7
+        ],
+        "q": [
+          1,
+          7
+        ]
+      },
+      "output_format": "room_corr[1,128] (dense room-correction dB) + fc/gain/q [1,7] (7-band biquad params)",
+      "graph_boundary": "input → {room_corr, fc, gain, q}.  peq_response(가우시안)·biquad 계수계산·pref_curve 합성은 그래프 밖.",
+      "excluded_postprocessing": "host/C: ①pref_curve = band_gains→128 선형보간, ②7-band closed-form biquad(RBJ) 계수계산 후 room_corr(dense)와 합성. 가우시안 재구성은 학습전용이라 미사용.",
+      "parity_max_abs_err": 0.001708984375,
+      "gain_max_observed": 10.810931205749512,
+      "gain_over6_frac": 0.3836495578289032,
+      "gain_gate": "PASS",
+      "interp_matmul_pou_err": 0.0,
+      "onnx_ops": [
+        "Add",
+        "Concat",
+        "Conv",
+        "Div",
+        "Erf",
+        "Gather",
+        "Gemm",
+        "MatMul",
+        "Mul",
+        "Pow",
+        "ReduceMean",
+        "Reshape",
+        "Sigmoid",
+        "Slice",
+        "Sqrt",
+        "Sub",
+        "Tanh",
+        "Transpose"
+      ],
+      "onnx_domains": [
+        "ai.onnx"
+      ],
+      "onnx_node_count": 1357,
+      "cubeai_hard_blocker_ops": [],
+      "cubeai_verify_ops": [
+        "Erf"
+      ],
+      "macc_thop": 3354496
+    },
+    {
+      "name": "AC2_GRU_Biquad",
+      "group": "AC",
+      "onnx": "ac2_gru_biquad.onnx",
+      "checkpoint": "revision_gain_freq\\checkpoints\\AC2_GRU_Biquad_g12.pt",
+      "seed": null,
+      "gain_max": 12.0,
+      "fc_max": 16000.0,
+      "n_params": 315510,
+      "input_shape": {
+        "feat": [
+          1,
+          32,
+          10
+        ],
+        "room": [
+          1,
+          128
+        ],
+        "mode_onehot": [
+          1,
+          4
+        ],
+        "band": [
+          1,
+          10
+        ]
+      },
+      "output_shape": {
+        "room_corr": [
+          1,
+          128
+        ],
+        "fc": [
+          1,
+          7
+        ],
+        "gain": [
+          1,
+          7
+        ],
+        "q": [
+          1,
+          7
+        ]
+      },
+      "output_format": "room_corr[1,128] (dense room-correction dB) + fc/gain/q [1,7] (7-band biquad params)",
+      "graph_boundary": "input → {room_corr, fc, gain, q}.  peq_response(가우시안)·biquad 계수계산·pref_curve 합성은 그래프 밖.",
+      "excluded_postprocessing": "host/C: ①pref_curve = band_gains→128 선형보간, ②7-band closed-form biquad(RBJ) 계수계산 후 room_corr(dense)와 합성. 가우시안 재구성은 학습전용이라 미사용.",
+      "parity_max_abs_err": 0.0006103515625,
+      "gain_max_observed": 11.420219421386719,
+      "gain_over6_frac": 0.455078125,
+      "gain_gate": "PASS",
+      "interp_matmul_pou_err": 0.0,
+      "onnx_ops": [
+        "Add",
+        "Concat",
+        "Conv",
+        "Div",
+        "Erf",
+        "GRU",
+        "Gather",
+        "Gemm",
+        "MatMul",
+        "Mul",
+        "Pow",
+        "ReduceMean",
+        "Reshape",
+        "Sigmoid",
+        "Sqrt",
+        "Squeeze",
+        "Sub",
+        "Tanh",
+        "Transpose"
+      ],
+      "onnx_domains": [
+        "ai.onnx"
+      ],
+      "onnx_node_count": 272,
+      "cubeai_hard_blocker_ops": [],
+      "cubeai_verify_ops": [
+        "Erf",
+        "GRU"
+      ],
+      "macc_thop": 4980608
+    },
+    {
+      "name": "AC3_Conformer_Biquad",
+      "group": "AC",
+      "onnx": "ac3_conformer_biquad.onnx",
+      "checkpoint": "revision_gain_freq\\checkpoints\\AC3_Conformer_Biquad_g12.pt",
+      "seed": null,
+      "gain_max": 12.0,
+      "fc_max": 16000.0,
+      "n_params": 411959,
+      "input_shape": {
+        "feat": [
+          1,
+          32,
+          10
+        ],
+        "room": [
+          1,
+          128
+        ],
+        "mode_onehot": [
+          1,
+          4
+        ],
+        "band": [
+          1,
+          10
+        ]
+      },
+      "output_shape": {
+        "room_corr": [
+          1,
+          128
+        ],
+        "fc": [
+          1,
+          7
+        ],
+        "gain": [
+          1,
+          7
+        ],
+        "q": [
+          1,
+          7
+        ]
+      },
+      "output_format": "room_corr[1,128] (dense room-correction dB) + fc/gain/q [1,7] (7-band biquad params)",
+      "graph_boundary": "input → {room_corr, fc, gain, q}.  peq_response(가우시안)·biquad 계수계산·pref_curve 합성은 그래프 밖.",
+      "excluded_postprocessing": "host/C: ①pref_curve = band_gains→128 선형보간, ②7-band closed-form biquad(RBJ) 계수계산 후 room_corr(dense)와 합성. 가우시안 재구성은 학습전용이라 미사용.",
+      "parity_max_abs_err": 0.0009765625,
+      "gain_max_observed": 11.343124389648438,
+      "gain_over6_frac": 0.63671875,
+      "gain_gate": "PASS",
+      "interp_matmul_pou_err": 0.0,
+      "onnx_ops": [
+        "Add",
+        "Concat",
+        "Conv",
+        "Div",
+        "Erf",
+        "Gather",
+        "Gemm",
+        "MatMul",
+        "Mul",
+        "Pow",
+        "ReduceMean",
+        "ReduceSum",
+        "Reshape",
+        "Sigmoid",
+        "Slice",
+        "Softmax",
+        "Sqrt",
+        "Squeeze",
+        "Sub",
+        "Tanh",
+        "Transpose",
+        "Unsqueeze"
+      ],
+      "onnx_domains": [
+        "ai.onnx"
+      ],
+      "onnx_node_count": 472,
+      "cubeai_hard_blocker_ops": [],
+      "cubeai_verify_ops": [
+        "Erf",
+        "ReduceSum",
+        "Softmax"
+      ],
+      "macc_thop": 8562560
+    }
+  ]
+}
