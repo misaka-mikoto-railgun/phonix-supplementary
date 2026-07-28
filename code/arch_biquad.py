@@ -23,7 +23,7 @@ from baselines import DifferentiablePEQResponse
 
 N_FILTERS = 7
 FC_MIN, FC_MAX = 80.0, 16000.0
-GAIN_MAX        = 6.0
+GAIN_MAX        = 12.0
 Q_MIN,  Q_MAX   = 0.3, 8.0
 
 
@@ -34,8 +34,9 @@ class _ACBiquadBase(_ACBase):
     """
 
     def _build_biquad_heads(self, n_filters: int = N_FILTERS, gain_max: float = GAIN_MAX):
-        # REVISION(gain±12): gain_max 생성자 인자화. 기본 6.0(원본 동일). GAIN_MAX는
-        # state_dict 에 없으므로 ±6 ckpt 를 ±12 인스턴스에 그대로 로드 가능.
+        # gain_max is a constructor argument (default 12.0 dB, the published
+        # configuration). GAIN_MAX is not stored in state_dict, so a checkpoint
+        # trained under one bound can be loaded into an instance with another.
         self._gain_max = gain_max
         hd, rd, pd, nf = self.hidden_dim, self.room_dim, self.pref_dim, self.n_freqs
 

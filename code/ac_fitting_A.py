@@ -34,7 +34,7 @@ import pandas as pd
 SR        = 48000
 N_FILTERS = 7
 FC_MIN, FC_MAX   = 80.0, 16000.0
-GAIN_MAX         = 6.0
+GAIN_MAX         = 12.0
 Q_MIN,  Q_MAX    = 0.3, 8.0
 TARGET_FREQS     = np.geomspace(20.0, 24000.0, 128).astype(np.float32)
 OMEGA            = (2 * np.pi * TARGET_FREQS / SR).astype(np.float64)
@@ -136,8 +136,9 @@ def main():
     parser.add_argument("--n_samples",  type=int, default=0,
                         help="0 = 전체 사용 (권장), N>0 이면 첫 N개만")
     parser.add_argument("--n_restarts", type=int, default=3)
-    parser.add_argument("--gain_max",   type=float, default=6.0,
-                        help="REVISION: biquad fitting gain bound (기본 6.0, 완화 12.0)")
+    parser.add_argument("--gain_max",   type=float, default=12.0,
+                        help="Per-section gain bound for biquad fitting (dB). "
+                             "Default 12.0 reproduces the published Option-A result.")
     args = parser.parse_args()
 
     global GAIN_MAX                    # REVISION: 모듈 상수 오버라이드 (fit_biquad 가 참조)

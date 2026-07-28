@@ -1,5 +1,0 @@
-Variant,Description,LSD ↓,Room-LSD ↓,Pref-LSD ↓,dmr ↑,CosSim ↑,RTF ↓
-A0_Proposed ★,Proposed model (former A2 no-pref-loss),1.442,4.689,1.599,0.928,0.960,0.000
-A1_NoRoomInput,Remove room_response input,2.897,6.049,3.044,0.832,0.862,0.000
-A2_withPrefLoss,with preference loss (former A0 full),1.703,4.684,1.859,0.884,0.944,0.000
-A3_NoPrefInput,"Remove preference inputs (mode_id, band_gains)",5.329,1.902,5.507,0.509,0.084,0.000

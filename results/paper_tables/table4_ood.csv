@@ -1,9 +1,0 @@
-Model,Synth Dual-LSD ↓,Real Dual-LSD ↓,Synth PA ↑,Real PA ↑
-E3 Nercessian,5.964,6.792,0.507,0.512
-E4 Pepe,5.809,6.623,0.504,0.516
-AC1 TCN+BiLSTM,0.853,1.508,0.947,0.910
-AC2 TCN+GRU,0.860,1.506,0.946,0.910
-AC3 Conformer,0.870,1.576,0.945,0.906
-A0 Proposed ★,1.442,1.941,0.928,0.885
-A1 w/o Room,2.897,4.875,0.832,0.740
-A2 with Pref,1.703,2.243,0.884,0.851

@@ -174,8 +174,9 @@ def main():
     parser.add_argument("--skip_train", action="store_true",
                         help="체크포인트 있으면 학습 건너뜀 (평가만)")
     parser.add_argument("--device",     default="cuda" if torch.cuda.is_available() else "cpu")
-    parser.add_argument("--gain_max",   type=float, default=6.0,
-                        help="REVISION: per-section gain bound (기본 6.0, 완화 12.0)")
+    parser.add_argument("--gain_max",   type=float, default=12.0,
+                        help="Per-section gain bound (dB). Default 12.0 reproduces "
+                             "the published Option-C result.")
     parser.add_argument("--seed",       type=int,   default=42,
                         help="REVISION: 원본엔 seed 고정 없음 → single-seed 재현성 위해 추가")
     parser.add_argument("--tag",        default="",

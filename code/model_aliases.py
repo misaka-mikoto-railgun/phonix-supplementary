@@ -1,6 +1,17 @@
 from __future__ import annotations
 
-
+# Model-variant naming history.
+#
+# During development the two Stage-B loss configurations were renamed: the
+# variant trained WITHOUT the auxiliary preference/directional terms was
+# initially called "A2_NoPrefLoss" and was later promoted to the proposed
+# model "A0_Proposed"; the variant trained WITH those terms was initially
+# called "A0_Full" and is reported as the ablation "A2_withPrefLoss".
+#
+# The aliases below map every historical name onto the canonical name used in
+# the paper, so that checkpoints written under the earlier naming can still be
+# loaded. They are kept for backward compatibility and provenance, not to
+# obscure the rename.
 CANONICAL_MODEL_ALIASES = {
     "A0": "A0_Proposed",
     "A0_Proposed": "A0_Proposed",
