@@ -3,3 +3,7 @@ __pycache__/
 .ipynb_checkpoints/
 .venv/
 venv/
+
+# track-level intermediate prediction dumps (~7.5 MB each, not part of the release)
+*_preds.npz
+_tl_probe*/
