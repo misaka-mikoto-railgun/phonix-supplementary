@@ -26,7 +26,8 @@
     },
     "interp_replaced_with_matmul": true,
     "mode_embedding_replaced_with_onehot_matmul": true,
-    "host_preprocessing": "mode_onehot = one_hot(mode_id, 4) — host/C에서 trivial 인코딩(그래프 밖)"
+    "host_preprocessing": "mode_onehot = one_hot(mode_id, 4) — host/C에서 trivial 인코딩(그래프 밖)",
+    "n_params_note": "n_params is captured before export-time graph surgery (GRU split / LSTM unroll); ONNX initializer totals differ by injected graph constants."
   },
   "variants": [
     {
@@ -468,7 +469,7 @@
       "seed": null,
       "gain_max": 12.0,
       "fc_max": 16000.0,
-      "n_params": 315510,
+      "n_params": 265590,
       "input_shape": {
         "feat": [
           1,

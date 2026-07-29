@@ -16,7 +16,7 @@
 | E4_Pepe | E | e4_pepe.onnx | E4_Pepe.pt | 42 | 12.0 | 50,351 | 1.46e-03 | 11.65 | n/a (구조적 ±12, trap 없음) | 1036288 | - | - |
 | E5_Sequential | E | e5_sequential.onnx | E5_Sequential.pt | 42 | 12.0 | 138,255 | 1.95e-03 | 5.61 | n/a (구조적 ±12, trap 없음) | 137472 | - | - |
 | AC1_BiLSTM_Biquad | AC | ac1_bilstm_biquad.onnx | AC1_BiLSTM_Biquad_g12.pt | None | 12.0 | 240,758 | 1.71e-03 | 10.81 | PASS | 3354496 | - | ['Erf'] |
-| AC2_GRU_Biquad | AC | ac2_gru_biquad.onnx | AC2_GRU_Biquad_g12.pt | None | 12.0 | 315,510 | 6.10e-04 | 11.42 | PASS | 4980608 | - | ['Erf', 'GRU'] |
+| AC2_GRU_Biquad | AC | ac2_gru_biquad.onnx | AC2_GRU_Biquad_g12.pt | None | 12.0 | 265,590 | 6.10e-04 | 11.42 | PASS | 4980608 | - | ['Erf', 'GRU'] |
 | AC3_Conformer_Biquad | AC | ac3_conformer_biquad.onnx | AC3_Conformer_Biquad_g12.pt | None | 12.0 | 411,959 | 9.77e-04 | 11.34 | PASS | 8562560 | - | ['Erf', 'ReduceSum', 'Softmax'] |
 
 ## 그래프 경계 & 제외 post-processing

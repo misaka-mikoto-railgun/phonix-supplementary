@@ -430,6 +430,9 @@ def main():
             "interp_replaced_with_matmul": True,
             "mode_embedding_replaced_with_onehot_matmul": True,
             "host_preprocessing": "mode_onehot = one_hot(mode_id, 4) — host/C에서 trivial 인코딩(그래프 밖)",
+            "n_params_note": ("n_params is captured before export-time graph surgery "
+                              "(GRU split / LSTM unroll); ONNX initializer totals differ by "
+                              "injected graph constants."),
         },
         "variants": [],
     }
@@ -444,6 +447,14 @@ def main():
         model = build().eval()
         nm, nu = load_ckpt(model, ckpt)
         print(f"  ckpt: {ckpt.name}  (missing={nm}, unexpected={nu})")
+
+        # n_params 는 반드시 export-time graph surgery 이전(=load_state_dict 직후)에 캡처.
+        #   install_gru_split(AC2): nn.GRU 인 gru_a/gru_b 를 '추가'하면서 원본 model.gru 를
+        #     남겨두므로, surgery 후 sum(model.parameters()) 는 GRU 를 두 번 셈
+        #     (265,590 + 49,920 = 315,510). ← 이 캡처로 방지.
+        #   install_bilstm_unroll(AC1): 언롤 가중치를 register_buffer 로 저장(파라미터 아님)
+        #     → model.bilstm 만 계상 → 중복 없음(240,758 정상). AC3 는 surgery 없음(411,959).
+        n_params = int(sum(p.numel() for p in model.parameters()))
 
         interp_err = None
         if cond:
@@ -570,7 +581,7 @@ def main():
             except Exception as e:
                 macc = f"thop 실패: {e}"
 
-        n_params = int(sum(p.numel() for p in model.parameters()))
+        # n_params 는 위(load 직후)에서 이미 캡처됨 — surgery 후 재계산 금지(중복 계상 위험).
         out_shapes = {out_names[i]: list(orto[i].shape) for i in range(len(out_names))}
 
         manifest["variants"].append({
