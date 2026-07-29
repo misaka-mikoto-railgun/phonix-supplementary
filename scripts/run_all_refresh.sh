@@ -42,11 +42,6 @@ cd "$CODE_DIR"
 run_and_log "check_frequency_grid_consistency" \
     python check_frequency_grid_consistency.py --data_dir "$DATA_DIR"
 
-run_and_log "fairness_table" \
-    python alpha_sweep.py --task fairness --data_dir "$DATA_DIR" \
-        --ckpt_dir "$CKPT_DIR" --table_out_dir "$PAPER_OUT/tables"
-
-run_and_log "paper_experiments" \
     python experiments_fixed_updated.py --data_dir "$DATA_DIR" \
         --ckpt_dir "$CKPT_DIR" --out_dir "$PAPER_OUT" --device "$DEVICE" --models all
 

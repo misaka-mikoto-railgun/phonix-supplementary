@@ -28,10 +28,6 @@ Run-And-Log "check_frequency_grid_consistency" {
     python check_frequency_grid_consistency.py --data_dir $dataDir
 }
 
-Run-And-Log "fairness_table" {
-    python alpha_sweep.py --task fairness --data_dir $dataDir --ckpt_dir $ckptDir --table_out_dir (Join-Path $paperOut "tables")
-}
-
 Run-And-Log "paper_experiments" {
     python experiments_fixed_updated.py --data_dir $dataDir --ckpt_dir $ckptDir --out_dir $paperOut --device cuda --models all
 }

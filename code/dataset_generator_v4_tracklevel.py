@@ -11,7 +11,7 @@ One-Shot Dual-Objective Adaptive PEQ
   5. dual target / room target의 과도한 보정량 제한
 
 사용법:
-  python dataset_generator_v3.py --fma_dir ./fma_audio --output_dir ./data/dataset_v3
+  python dataset_generator_v4_tracklevel.py --fma_dir ./fma_audio --output_dir ./data/dataset_v3
 """
 
 import os
