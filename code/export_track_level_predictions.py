@@ -339,6 +339,7 @@ def write_track_level_comparisons(
     n_boot: int,
     seed: int,
     out_dir: Path,
+    baseline_seed: str | None = None,
 ) -> None:
     from track_level_eval import compare_two_prediction_sets
 
@@ -367,7 +368,10 @@ def write_track_level_comparisons(
             .replace("/", "_")
         )
         json_path = out_dir / f"{safe_label}_{group_key}.json"
-        json_path.write_text(json.dumps(summary_to_jsonable(summary), indent=2), encoding="utf-8")
+        payload = summary_to_jsonable(summary)
+        if baseline_seed is not None:
+            payload["baseline_seed"] = baseline_seed
+        json_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         print(f"Saved paired stats: {json_path}")
 
         for metric_name in ["lsd", "dmr", "cossim"]:
@@ -415,6 +419,8 @@ def main() -> None:
         help="Comma-separated model names, short names (A0,A1,A2,A3,E3,E4), 'reviewer', or 'all'",
     )
     parser.add_argument("--baseline", default="A0", help="Baseline model for paired stats")
+    parser.add_argument("--baseline-seed", default=None,
+                        help="Training seed of the baseline/candidate checkpoints, recorded in the JSON")
     parser.add_argument(
         "--candidates",
         default="A1,A2,A3,E3,E4",
@@ -480,6 +486,7 @@ def main() -> None:
             n_boot=args.n_boot,
             seed=args.seed,
             out_dir=out_dir,
+            baseline_seed=args.baseline_seed,
         )
 
 

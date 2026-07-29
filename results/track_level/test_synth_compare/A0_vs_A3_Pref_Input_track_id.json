@@ -1,0 +1,47 @@
+{
+  "group_key": "track_id",
+  "sample_level_n": 3000,
+  "n_groups": 1306,
+  "metrics": {
+    "lsd": {
+      "n_groups": 1306,
+      "baseline_mean": 1.0012468456719954,
+      "candidate_mean": 5.334029169579195,
+      "mean_diff": 4.3327823239072,
+      "ci_low": 4.293586454187358,
+      "ci_high": 4.373700843227722,
+      "p_ttest": 0.0,
+      "p_wilcoxon": 4.253937467187471e-215,
+      "cohens_dz": 5.775845811563514,
+      "win_rate": 0.0,
+      "conditional_win_rate": 0.0
+    },
+    "dmr": {
+      "n_groups": 1306,
+      "baseline_mean": 0.941641997825497,
+      "candidate_mean": 0.5071952991404358,
+      "mean_diff": -0.43444669868506114,
+      "ci_low": -0.44208337737598197,
+      "ci_high": -0.42729676387530924,
+      "p_ttest": 0.0,
+      "p_wilcoxon": 4.4542253847585257e-215,
+      "cohens_dz": -3.1745403792346356,
+      "win_rate": 0.0015313935681470138,
+      "conditional_win_rate": 0.0015313935681470138
+    },
+    "cossim": {
+      "n_groups": 1306,
+      "baseline_mean": 0.979021789468996,
+      "candidate_mean": 0.08168266954472371,
+      "mean_diff": -0.8973391199242723,
+      "ci_low": -0.9141816759567933,
+      "ci_high": -0.8805233445962732,
+      "p_ttest": 0.0,
+      "p_wilcoxon": 4.253937467187471e-215,
+      "cohens_dz": -2.8739774819951087,
+      "win_rate": 0.0,
+      "conditional_win_rate": 0.0
+    }
+  },
+  "baseline_seed": "42"
+}
