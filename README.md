@@ -53,6 +53,49 @@ python code/dataset_generator_v4_tracklevel.py --fma_dir ./fma_audio --output_di
 Splits: `train`, `val`, `test_synth`, `test_real` (BUT ReverbDB + OpenAIR),
 `paired_mode_test`.
 
+## Table mapping
+
+| Repository file | Paper |
+|---|---|
+| `tables/table2_revision_synth.csv` | Table 1 (main, synthetic) and Table 2 (ablation) |
+| `tables/table5_ood.csv` | Table 3 (out-of-distribution) |
+| `tables/table6_biquad.csv`, `tables/T5_ac_fitting.csv` | Table 4 (biquad-constrained comparison) |
+| `tables/table7_perceptual.csv` | Table 5 (perceptual proxy) |
+| `tables/T2_paired_stats_3seed.csv`, `results_json/paired_stats_3seed_*.json` | paired diagnostics quoted in Section 3.2 |
+| `tables/T3_tracklevel_3seed.csv`, `results_json/track_stats_3seed_*.json` | track-level aggregate quoted in Section 3.2 |
+| `tables/T4_saturation.csv`, `figures/F1_saturation_A0.*` | gain-saturation statistics (Section 3.4) |
+| `tables/T1_main_results.csv`, `T6`, `T7` | consolidated overview and gap analysis; not quoted directly |
+| `embedded/` | Tables 6 and 7 (deployment footprint and on-chip latency) |
+
+Specific figures quoted in Section 3.2 come from
+`tables/T2_paired_stats_3seed.csv`: the `|d_z| = 1.5–4.4` range and the
+`78–100 %` win rates are the A1/A3/E3/E4 rows, and `about 0.23 dB lower LSD`
+is the **AC1–AC3** block (LSD deltas +0.242 / +0.235 / +0.225, mean 0.234, in
+favour of the dense variants). Note that the A2 row happens to have the same
+magnitude with the opposite sign (−0.234, in favour of A0); the two are easy to
+confuse.
+
+Real-time factors are machine-specific and are reported only in the paper
+(AMD Ryzen 7 9800X3D, single thread; RTF = inference latency / 4000 ms), so the
+CSVs here carry no RTF column. On-chip latency for the embedded target is in
+`embedded/latency/MEASUREMENT_LOG.md`.
+
+## Sign conventions
+
+Sign conventions differ between the two families of paired statistics:
+
+- `tables/T2`, `T3` and `results_json/*_3seed_*.json` (`paired_stats.py`,
+  `track_stats.py`): **Δ = A0 − comparison**, so a negative value means A0 is
+  better.
+- `results/track_level/**` (`export_track_level_predictions.py`):
+  **mean_diff = comparison − baseline (A0)**, so a positive value means A0 is
+  better.
+
+Check the field name before comparing. The two families also differ in seed
+handling: T2/T3 aggregate three seeds, while `results/track_level/` uses a
+matched single seed (42). Figures quoted in the paper come from the three-seed
+family — see the table mapping above.
+
 ## Seeds
 
 A0 and A2 were trained with three seeds (42, 123, 7); every other model retains
@@ -68,6 +111,12 @@ files. Note that seed 42 is A0's best of the three revision seeds (0.999 vs. the
 3-seed mean of 1.095) and A2's best (1.031 vs. 1.329); at this matched seed the
 two are within 0.03 dB, consistent with the near-parity in mean accuracy reported
 in the manuscript. Headline figures use the 3-seed aggregate.
+
+Uncertainty is reported as a 95 % bootstrap CI for single-seed rows and as
+±1 seed standard deviation for the three-seed A0/A2 rows, matching the paper.
+The A0 confidence interval quoted in the paper's Table 4, [1.083, 1.107], is the
+bootstrap over the per-sample three-seed mean and is the one carried in
+`tables/table6_biquad.csv`.
 
 Each track-level JSON records the seed in a `baseline_seed` field. The sign
 convention is `mean_diff = candidate − baseline`, with A0 as the baseline.
