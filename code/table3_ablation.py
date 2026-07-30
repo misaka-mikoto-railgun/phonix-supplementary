@@ -62,7 +62,7 @@ a2_dmr_m = np.mean([A2[s][1].mean() for s in SEEDS]); a2_cos_m = np.mean([A2[s][
 # ── (1) Table 3 ─────────────────────────────────────────────────────────────
 print("="*92); print("Table 3 (Ablation, test_synth, ±12). A0/A2=3-seed mean±std; A1/A3=single-seed."); print("="*92)
 print(f"{'Model':22}{'LSD↓':>16}{'DMR↑':>8}{'CosSim↑':>9}")
-print(f"{'A0 Proposed ★':22}{a0_lsd_m:>8.3f}±{a0_lsd_s:<6.3f}{a0_dmr_m:>8.3f}{a0_cos_m:>9.3f}")
+print(f"{'A0 Proposed':22}{a0_lsd_m:>8.3f}±{a0_lsd_s:<6.3f}{a0_dmr_m:>8.3f}{a0_cos_m:>9.3f}")
 print(f"{'A1 w/o Room':22}{A1[0].mean():>8.3f}{'':7}{A1[1].mean():>8.3f}{A1[2].mean():>9.3f}")
 print(f"{'A2 w/ Pref Loss':22}{a2_lsd_m:>8.3f}±{a2_lsd_s:<6.3f}{a2_dmr_m:>8.3f}{a2_cos_m:>9.3f}")
 print(f"{'A3 w/o Pref Input':22}{A3[0].mean():>8.3f}{'':7}{A3[1].mean():>8.3f}{A3[2].mean():>9.3f}")

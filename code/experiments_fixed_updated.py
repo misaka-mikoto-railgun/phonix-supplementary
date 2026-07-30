@@ -617,7 +617,7 @@ def fig4_ablation_bar(results: dict, out_dir: Path):
     colors = ([C["baseline"]]*4 + [C["ablation"]]*2 + [C["arch"]]*3 + [C["proposed"]])
     hatches = ([HATCHES["baseline"]]*4 + [HATCHES["ablation"]]*2 +
                [HATCHES["arch"]]*3 + [HATCHES["proposed"]])
-    labels = ["E3","E4","E5","E6","A1\n(−Room)","A2\n(+Pref)","AC1\nBiLSTM","AC2\nGRU","AC3\nConf.","A0★"]
+    labels = ["E3","E4","E5","E6","A1\n(−Room)","A2\n(+Pref)","AC1\nBiLSTM","AC2\nGRU","AC3\nConf.","A0"]
 
     lsd_vals = [results[m]["lsd_mean"] for m in models]
     pa_vals  = [results[m]["dmr_mean"] for m in models]
@@ -651,7 +651,7 @@ def fig4_ablation_bar(results: dict, out_dir: Path):
 def fig5_distributions(results: dict, out_dir: Path):
     """Fig 5 – LSD/dmr 샘플 단위 분포 (박스플롯)"""
     models = ["E3_Nercessian","E4_Pepe","A1_NoRoomInput","A2_withPrefLoss","AC3_Conformer","A0_Proposed"]
-    labels = ["E3\nNercess.","E4\nPepe","A1\n−Room","A2\n+Pref","AC3\nConf.","A0★"]
+    labels = ["E3\nNercess.","E4\nPepe","A1\n−Room","A2\n+Pref","AC3\nConf.","A0"]
     colors  = [C["baseline"],C["baseline"],C["ablation"],C["ablation"],C["arch"],C["proposed"]]
     # Per-box unique hatch so B&W printing distinguishes boxes with similar greyscale
     hatches5 = ["//", "----", "\\\\", "....", "xx", ""]   # one per model, in order
@@ -870,7 +870,7 @@ def fig8_ood_advantage(results_synth: dict, results_real: dict, out_dir: Path):
 def fig9_ood_bar(results_synth: dict, results_real: dict, out_dir: Path):
     """Fig 9 – OOD 일반화: 합성/실제 RIR LSD + dmr 비교"""
     models = ["E3_Nercessian","E4_Pepe","AC1_BiLSTM","AC2_GRU","AC3_Conformer","A0_Proposed","A1_NoRoomInput","A2_withPrefLoss"]
-    labels = ["E3","E4","AC1","AC2","AC3","A0★","A1\n−Room","A2\n−Pref"]
+    labels = ["E3","E4","AC1","AC2","AC3","A0","A1\n−Room","A2\n−Pref"]
     colors = [C["baseline"]]*2 + [C["arch"]]*3 + [C["proposed"]] + [C["ablation"]]*2
 
     fig, axes = plt.subplots(1, 2, figsize=(7.0, 3.2))
@@ -1070,7 +1070,7 @@ def build_table1(results_synth: dict) -> pd.DataFrame:
         "E3_Nercessian":"E3  Nercessian MLP [3]","E4_Pepe":"E4  Pepe CNN [4]",
         "E5_Sequential":"E5  Sequential (E3→E2)","E6_DSP":"E6  DSP Analytical",
         "AC1_BiLSTM":"AC1 TCN+BiLSTM","AC2_GRU":"AC2 TCN+GRU","AC3_Conformer":"AC3 TCN+Conformer",
-        "A0_Proposed":"A0  Proposed ★","A1_NoRoomInput":"A1  w/o Room Input","A2_withPrefLoss":"A2  with Pref Loss","A3_NoPrefInput":"A3  w/o Pref Input",
+        "A0_Proposed":"A0  Proposed","A1_NoRoomInput":"A1  w/o Room Input","A2_withPrefLoss":"A2  with Pref Loss","A3_NoPrefInput":"A3  w/o Pref Input",
     }
     rows = []
     for m in order:
@@ -1101,7 +1101,7 @@ def build_table2(results_synth: dict) -> pd.DataFrame:
     for m in order:
         r = results_synth[m]
         rows.append({
-            "Variant":     m + (" ★" if m=="A0_Proposed" else ""),
+            "Variant":     m,
             "Description": descs[m],
             "LSD ↓":       f"{r['lsd_mean']:.3f}",
             "Room-LSD ↓":  f"{r['lsd_room_mean']:.3f}",
@@ -1118,7 +1118,7 @@ def build_table4(results_synth: dict, results_real: dict) -> pd.DataFrame:
     labels = {
         "E3_Nercessian":"E3 Nercessian","E4_Pepe":"E4 Pepe",
         "AC1_BiLSTM":"AC1 TCN+BiLSTM","AC2_GRU":"AC2 TCN+GRU","AC3_Conformer":"AC3 Conformer",
-        "A0_Proposed":"A0 Proposed ★","A1_NoRoomInput":"A1 w/o Room","A2_withPrefLoss":"A2 with Pref",
+        "A0_Proposed":"A0 Proposed","A1_NoRoomInput":"A1 w/o Room","A2_withPrefLoss":"A2 with Pref",
     }
     rows = []
     for m in order:

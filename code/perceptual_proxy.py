@@ -117,7 +117,7 @@ def bootstrap_ci(arr: np.ndarray, n_boot: int = 2000,
 # 모델 목록 (메인 폴더 naming convention)
 # ──────────────────────────────────────────────────────────
 
-# A0_Proposed    = proposed model (no preference loss, marked ★ in main results)
+# A0_Proposed    = proposed model (no preference loss, the proposed model in the main results)
 # A2_withPrefLoss = ablation: with preference loss (former A0_Full)
 KEY_MODELS = [
     ("A0_Proposed",      "A0 Proposed"),

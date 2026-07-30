@@ -88,7 +88,7 @@ for disp, name, ckpt in ROWS:
                     rtf=RTF.get(name), params=PARAMS.get(name), seeds="1(orig)"))
 
 # A0 / A2 — gain±12, 3-seed
-for disp, var in [("A0 Proposed (±12) ★", "A0"), ("A2 with Pref Loss (±12)", "A2")]:
+for disp, var in [("A0 Proposed (±12)", "A0"), ("A2 with Pref Loss (±12)", "A2")]:
     regname = "A0_Proposed" if var == "A0" else "A2_withPrefLoss"
     lsd_means, dmrs, coss, lsd_pool = [], [], [], []
     for s in SEEDS:

@@ -76,7 +76,7 @@ BIQ = [("AC1_Biquad","AC1_BiLSTM_Biquad",SAVE/"AC1_BiLSTM_Biquad_g12.pt"),
 rows=[]
 # A0 (기준)
 a0L,a0E,a0O = mlevel_multiseed(A0_all)
-rows.append(("A0 Proposed ±12 ★", a0L,a0E,a0O, 0.0, 100.0))
+rows.append(("A0 Proposed ±12", a0L,a0E,a0O, 0.0, 100.0))
 # A2 (3-seed, same-seed pairing)
 a2L,a2E,a2O = mlevel_multiseed(A2_all)
 d,p = jnd_vs_a0(None, a2_per_seed={s:A2_all[s][0] for s in SEEDS})

@@ -190,7 +190,7 @@ def build_registry() -> dict:
             "loss":   a0_proposed_loss,
             "target": "dual",
             "group":  "Proposed",
-            "note":   "Proposed model: w/o preference loss ★",
+            "note":   "Proposed model: w/o preference loss",
         },
 
         # ── Ablations ──────────────────────────────────────────────────────
@@ -587,7 +587,7 @@ def print_table(results: dict):
         print(header)
         print(sep)
         for name, r in items.items():
-            mark  = " ★" if name == "A0_Proposed" else ""
+            mark  = ""
             lsd   = f"{r['val_lsd']:.4f}"      if r.get("val_lsd")      else "—"
             lsr   = f"{r['val_lsd_room']:.4f}"  if r.get("val_lsd_room") else "—"
             pa    = f"{r['val_pascore']:.3f}"   if r.get("val_pascore")  else "—"
