@@ -16,7 +16,7 @@ parametric-EQ head outputs parameters for seven biquad sections, with a
 | | |
 |---|---|
 | **Included** | model and training code, evaluation and table/figure scripts, generated tables (CSV) and figures (PNG + vector PDF), raw metric outputs (JSON), track-level paired statistics, ONNX exports and the embedded MFCC front-end |
-| **Not included** | the audio dataset and the trained checkpoints. Every script takes their locations as command-line arguments, and `checkpoints_manifest.json` / `dataset_manifest.json` describe what is published alongside the release |
+| **Not included** | the audio dataset and the trained checkpoints — neither is redistributed. Every script takes their locations as command-line arguments, and `checkpoints_manifest.json` / `dataset_manifest.json` describe them |
 
 ## Layout
 
@@ -233,59 +233,59 @@ and have no checkpoint; they are exempt by name, not by silence.
 
 ## Checkpoints and dataset
 
-Neither is in this repository. `checkpoints_manifest.json` and
-`dataset_manifest.json` describe them.
+**Neither the trained checkpoints nor the audio is distributed.**
+`checkpoints_manifest.json` and `dataset_manifest.json` describe them instead:
+what each artefact is, and enough to check that a copy obtained elsewhere is the
+one these results came from.
 
-The checkpoints are published as two directories, because the same basename can
-mean two different files: `checkpoints_original/A0_Proposed.pt` is the
-pre-revision model, while the ±12 dB seed-7 model that the single-checkpoint
-figures use is `checkpoints_revision/A0_g12_f16k_s7.pt`.
+### Checkpoints
+
+Not redistributed. The manifest names 27 of them in two groups, and the split
+matters because one basename can mean two different files:
+`checkpoints_original/A0_Proposed.pt` is the pre-revision model, while the ±12 dB
+seed-7 model behind the single-checkpoint figures is
+`checkpoints_revision/A0_g12_f16k_s7.pt`.
 
 ```
-checkpoints_original/    15 files, pre-revision
-checkpoints_revision/    12 files, retrained under the ±12 dB bound
+checkpoints_original/    15 entries, pre-revision
+checkpoints_revision/    12 entries, retrained under the ±12 dB bound
 ```
 
-They are attached to the release as `checkpoints_original.zip` and
-`checkpoints_revision.zip`, each containing that directory. Unpack both into one
-place and the layout matches the `file` paths in the manifest:
+For each entry the manifest records the model it belongs to, the training seed,
+the `gain_max` / `fc_max` it was trained under, its size, and its SHA-256. Its
+`source_commit` is the repository HEAD the manifest was generated from, so it is
+the parent of the commit the file appears in. The
+bounds are there because a `.pt` file does not record them: loading a ±12 dB
+checkpoint into a model built with `gain_max=6.0` succeeds and then silently
+clamps, so the manifest is the only place the pairing is stated.
+
+It also carries `evaluation_staging`, the mapping from a model name to the file
+it is actually evaluated from. The working tree implemented the "representative
+seed 7" convention by substituting files inside a staging directory, which is
+what created the name collision; the mapping states it instead. Given the
+checkpoints, `code/make_eval_staging.py` turns that mapping back into the
+directory the generators expect and verifies each file against its SHA-256.
 
 ```bash
-unzip checkpoints_original.zip -d /path/to/ckpt
-unzip checkpoints_revision.zip -d /path/to/ckpt
-# /path/to/ckpt/checkpoints_original/A0_Proposed.pt
-# /path/to/ckpt/checkpoints_revision/A0_g12_f16k_s7.pt
-
 python code/make_eval_staging.py \
-    --ckpt_dir /path/to/ckpt/checkpoints_original \
-    --rev_ckpt_dir /path/to/ckpt/checkpoints_revision \
-    --out_dir /path/to/ckpt/ckpt_eval
+    --ckpt_dir  /path/to/checkpoints_original \
+    --rev_ckpt_dir /path/to/checkpoints_revision \
+    --out_dir   /path/to/ckpt_eval
 
-CKPT_DIR=/path/to/ckpt/checkpoints_original \
-REV_CKPT_DIR=/path/to/ckpt/checkpoints_revision \
-EVAL_CKPT_DIR=/path/to/ckpt/ckpt_eval \
+CKPT_DIR=/path/to/checkpoints_original \
+REV_CKPT_DIR=/path/to/checkpoints_revision \
+EVAL_CKPT_DIR=/path/to/ckpt_eval \
 DATA_DIR=/path/to/dataset_v3 bash scripts/run_all_refresh.sh
 ```
 
-`make_eval_staging.py` is what turns `evaluation_staging` back into a directory:
-it copies the pre-revision set, applies the two substitutions the mapping
-declares, and checks every file it writes against the SHA-256 in the manifest.
-The result is byte-identical to the staging directory the published results were
-produced from — which is why the mapping is published as a statement rather than
-as a directory of files whose names would contradict each other.
-
-The working tree applied the "representative seed 7" convention by substituting
-files inside a staging directory, which is what produced the name collision.
-The release states it as the `evaluation_staging` mapping in the manifest
-instead, and does not ship the staging directory. Checkpoints are published
-byte-for-byte as trained — optimiser state and history included — so that their
-SHA-256 in the manifest identifies exactly what was evaluated.
+### Dataset
 
 The audio is third-party (FMA, BUT ReverbDB, OpenAIR) and is not redistributed.
 `dataset_generator_v4_tracklevel.py` sorts its file list before splitting, so a
 different local corpus produces a different split even at seed 42;
 `dataset_manifest.json` therefore records the per-split track and RIR lists
-along with the full generation config.
+along with the full generation config, which is what makes the same split
+reconstructible from the original sources.
 
 ## Line endings
 

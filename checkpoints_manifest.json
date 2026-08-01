@@ -1,11 +1,11 @@
 {
-  "source_commit": "8466ab2daafee9fb488cc8b40dbd125de70c6ee1",
-  "note": "gain_max / fc_max are not stored inside a .pt file. Instantiate the model with the values given here; a mismatched bound loads without error and then clamps the output.",
+  "source_commit": "b904cd4dfdcb3ffeeb51af376d98382cffe15b3b",
+  "note": "These checkpoints are not redistributed. gain_max / fc_max are not stored inside a .pt file, so this manifest is where the pairing is recorded: instantiate the model with the values given here, because a mismatched bound loads without error and then clamps the output. The sha256 of each entry identifies exactly the file the published results were produced from.",
   "evaluation_staging": {
     "A0_Proposed": "checkpoints_revision/A0_g12_f16k_s7.pt",
     "A2_withPrefLoss": "checkpoints_revision/A2_g12_f16k_s7.pt"
   },
-  "evaluation_staging_note": "Model names not listed above are evaluated from checkpoints_original/<name>.pt.",
+  "evaluation_staging_note": "Model names not listed above are evaluated from checkpoints_original/<name>.pt. code/make_eval_staging.py rebuilds the staging directory from this mapping and checks each file against its sha256.",
   "checkpoints": [
     {
       "file": "checkpoints_revision/A0_g12_f16k_s123.pt",

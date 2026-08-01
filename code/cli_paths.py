@@ -16,10 +16,12 @@ so the scripts can be pointed at copies unpacked anywhere.
 On the staging directory: --eval_ckpt_dir holds the checkpoints each model is
 evaluated from. Most of its entries are the pre-revision files; A0_Proposed.pt
 and A2_withPrefLoss.pt are the seed-7 +/-12 checkpoints instead, which is how
-the "representative seed 7" convention is applied. The release ships that as
-an explicit mapping (evaluation_staging in checkpoints_manifest.json) rather
-than as substituted files, because two different checkpoints under one name is
-the same trap as a +/-6 model loaded through a +/-12 instance.
+the "representative seed 7" convention is applied. The checkpoints are not
+redistributed, and checkpoints_manifest.json states that substitution as an
+explicit mapping (evaluation_staging) rather than leaving it implicit in a
+directory, because two different checkpoints under one name is the same trap
+as a +/-6 model loaded through a +/-12 instance. make_eval_staging.py rebuilds
+the directory from that mapping.
 """
 import argparse
 from pathlib import Path

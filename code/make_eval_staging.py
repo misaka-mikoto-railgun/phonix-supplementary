@@ -2,14 +2,15 @@
 make_eval_staging.py — materialise the evaluation staging directory
 ===================================================================
 Some generators are given `--eval_ckpt_dir`: the directory each model is
-evaluated from. It is not published, because most of it duplicates
-checkpoints_original/ and two of its entries would otherwise ship a second,
-different file under a name that already means something else — the same kind of
-trap as loading a +/-6 dB checkpoint through a +/-12 dB instance.
+evaluated from. Describing it as a directory would be misleading — most of it
+duplicates checkpoints_original/, and two of its entries hold a different file
+under a name that already means something else, which is the same kind of trap
+as loading a +/-6 dB checkpoint through a +/-12 dB instance.
 
-The release states the difference declaratively instead, as `evaluation_staging`
-in checkpoints_manifest.json. This script turns that statement back into the
-directory, and verifies every file it writes against the SHA-256 in the manifest.
+checkpoints_manifest.json states the difference declaratively instead, as
+`evaluation_staging`. Given the checkpoints (which are not redistributed; see
+the README), this script turns that statement back into the directory and
+verifies every file it writes against the SHA-256 in the manifest.
 
   python make_eval_staging.py --ckpt_dir /path/to/checkpoints_original \\
       --rev_ckpt_dir /path/to/checkpoints_revision --out_dir ./ckpt_eval

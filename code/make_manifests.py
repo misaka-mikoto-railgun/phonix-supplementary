@@ -1,7 +1,9 @@
 """
-make_manifests.py — release manifests for the checkpoints and the dataset
+make_manifests.py — manifests for the checkpoints and the dataset
 =========================================================================
-Writes two files that describe artefacts this repository does not itself carry:
+Neither the trained checkpoints nor the audio is distributed. These two files
+describe them instead, so that a copy obtained elsewhere can be identified as
+the one the published results came from:
 
   checkpoints_manifest.json
       One entry per published checkpoint: which model it is, the seed it was
@@ -14,9 +16,9 @@ Writes two files that describe artefacts this repository does not itself carry:
       It also carries `evaluation_staging`: the mapping from a model name to
       the file it is actually evaluated from. In the working tree that mapping
       was applied by substituting files inside a staging directory, which left
-      two different checkpoints sharing the name A0_Proposed.pt. The release
-      publishes the two directories unmodified and states the mapping here
-      instead.
+      two different checkpoints sharing the name A0_Proposed.pt. The mapping is
+      stated here instead; code/make_eval_staging.py rebuilds the directory
+      from it.
 
   dataset_manifest.json
       The audio is third-party (FMA, BUT ReverbDB, OpenAIR) and is not
@@ -41,9 +43,9 @@ ROOT = HERE.parent
 
 SPLITS = ["train", "val", "test_synth", "test_real", "paired_mode_test"]
 
-# Release layout -> source directory. ckpt_eval/ is not published: 13 of its 15
-# entries are byte-identical to checkpoints_original/ and the other two are in
-# checkpoints_revision/ under their own names.
+# Manifest group -> source directory. ckpt_eval/ is not described separately:
+# 13 of its 15 entries are byte-identical to checkpoints_original/ and the other
+# two are in checkpoints_revision/ under their own names.
 STAGING = {
     "A0_Proposed": "checkpoints_revision/A0_g12_f16k_s7.pt",
     "A2_withPrefLoss": "checkpoints_revision/A2_g12_f16k_s7.pt",
@@ -108,6 +110,13 @@ def sha256(path, chunk=1 << 20):
 
 
 def git_sha():
+    """Repository HEAD when the manifest is written.
+
+    The commit that carries the manifest is necessarily this one's child, since
+    writing the file changes the tree. It identifies the code the description
+    was produced from, not the commit the file appears in — for that, use
+    `git log` on the manifest itself.
+    """
     try:
         return subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"],
                               capture_output=True, text=True, check=True).stdout.strip()
@@ -142,12 +151,18 @@ def build_checkpoints(ckpt_dir, rev_ckpt_dir, commit):
             entries.append(describe(p, release_dir))
     return {
         "source_commit": commit,
-        "note": ("gain_max / fc_max are not stored inside a .pt file. Instantiate "
-                 "the model with the values given here; a mismatched bound loads "
-                 "without error and then clamps the output."),
+        "note": ("These checkpoints are not redistributed. gain_max / fc_max are not "
+                 "stored inside a .pt file, so this manifest is where the pairing is "
+                 "recorded: instantiate the model with the values given here, because "
+                 "a mismatched bound loads without error and then clamps the output. "
+                 "The sha256 of each entry identifies exactly the file the published "
+                 "results were produced from."),
         "evaluation_staging": STAGING,
-        "evaluation_staging_note": ("Model names not listed above are evaluated "
-                                    "from checkpoints_original/<name>.pt."),
+        "evaluation_staging_note": ("Model names not listed above are evaluated from "
+                                    "checkpoints_original/<name>.pt. "
+                                    "code/make_eval_staging.py rebuilds the staging "
+                                    "directory from this mapping and checks each file "
+                                    "against its sha256."),
         "checkpoints": entries,
     }
 
