@@ -47,9 +47,13 @@ the quantisation effect alone, measured inside one pipeline.
 Accuracy is not the only thing quantisation changes, and on the F405 it does not
 buy speed: A0 measures 288.3 ms under INT8 against its FP32 figure
 (`embedded/latency/MEASUREMENT_LOG.md`). The op-type distribution says why.
-For the AC3 INT8 graph, ST Edge AI reports only **15.2 % of operators running in
-s8** against **81.4 % still in f32**, and the MACC count comes out **0.7 % higher
-than the FP32 graph** rather than lower. `[session record]`
+For the AC3 INT8 graph, ST Edge AI reports only **15.2 % of operations running in
+s8** (6,801,049 of 44,699,530) against **81.4 % still in f32** (36,402,578), and
+the MACC count comes out **0.71 % higher** than the FP32 graph's 44,383,435
+rather than lower — the attention MatMuls are not quantised, so the graph is
+mixed precision and pays for the conversions.
+`[file: ../build_reports/analyze_ac3_int8.txt]`,
+`[file: ../build_reports/analyze_ac3.txt]`
 
 A QDQ graph that is mostly f32 spends its time on the quantise/dequantise pairs
 between the few integer kernels, and the Cortex-M4F has no SIMD path that would

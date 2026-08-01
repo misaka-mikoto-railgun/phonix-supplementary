@@ -17,10 +17,8 @@ file is therefore expected and does not indicate an absence of measurement.
 - `[file: <path>]` — value verified in a file in this repository.
 - `[datasheet]` — a published property of the part.
 - `[session record]` — read out during a measurement session; no file in this
-  repository contains it. The DWT figures are from 2026-06-23; the AC3 RAM
-  breakdown and the linker RAM region were read from `stedgeai analyze` and
-  `STM32F405RGTX_FLASH.ld` in a later session, and become `[file:]` once those
-  are committed under `../build_reports/`.
+  repository contains it. This covers the DWT cycle-counter figures of
+  2026-06-23, which were read over SWD as described above.
 
 ## Hardware
 
@@ -78,39 +76,44 @@ per-variant cycle counts other than A0; those rows are marked
 |---|---|---|---|
 | A0_Proposed | 288.3 ms | slower than FP32 on this MCU | `[session record]` |
 | AC2_GRU_Biquad | 389.6 ms | | `[session record]` |
-| AC3_Conformer_Biquad | N/A | AI RAM 185.05 KiB (45.41 activations + 139.64 runtime) overflows the 112 KiB linker RAM region by ≈ 78 KB at link time | `[session record]` |
+| AC3_Conformer_Biquad | N/A | AI RAM 189,488 B (185.05 KiB) overflows the 112 KiB linker RAM region by ≈ 78 KB at link time | `[file: ../build_reports/analyze_ac3_int8.txt]`, `[file: ../build_reports/STM32F405RGTX_FLASH.ld.MEMORY]` |
 
 INT8 accuracy impact is in `[file: ../onnx/INT8_EVAL.md]` (that file contains accuracy
 only — no size or latency figures).
 
 **The AC3 overrun is not an activation-buffer overflow.** The INT8 activations
-are 45.41 KiB and fit comfortably. What overflows is the total AI RAM: the
-X-CUBE-AI runtime alone needs 139.64 KiB, 2.5× A0's 54.88 KiB, because the QDQ
-graph carries per-tensor quantisation tables and mixed-precision conversion
-buffers.
+are 46,500 B (45.41 KiB) and fit comfortably. What overflows is the total AI
+RAM, of which the X-CUBE-AI runtime is 142,988 B (139.64 KiB) — 2.5× A0's
+56,192 B — because the QDQ graph carries per-tensor quantisation tables and
+mixed-precision conversion buffers.
 
-The build declares the CubeMX default RAM region, `RAM (xrw) : LENGTH = 112K`,
-which is SRAM1 only:
+The build declares the CubeMX default RAM region, which is SRAM1 only:
 
 ```
-185.05 KiB (189,491 B) AI RAM
-−  112 KiB (114,688 B) linker RAM region
-=  73.05 KiB
-+  ≈5 KiB application (0x400 stack + 0x200 heap + HAL bss)
-≈  78 KB   → the figure quoted in the paper
+MEMORY {
+  CCMRAM (xrw) : ORIGIN = 0x10000000, LENGTH =  64K
+  RAM    (xrw) : ORIGIN = 0x20000000, LENGTH = 112K
+  FLASH  (rx)  : ORIGIN = 0x08000000, LENGTH = 1024K
+}
+_Min_Heap_Size  = 0x800    _Min_Stack_Size = 0x800
 ```
 
-Even against this part's 128 KiB of contiguous SRAM the graph is 57 KiB over,
-and the 64 KiB CCM sits at a disjoint address, so it cannot back the same
-allocation.
+```
+189,488 B  AI RAM total   (46,500 activations + 142,988 runtime)
+−114,688 B  RAM region     (112 KiB)
+=  74,800 B  =  73.05 KiB
++   4,096 B  application stack + heap (0x800 each), before HAL static data
+≈  78 KB    → the figure quoted in the paper
+```
 
-> The three figures above (45.41 / 139.64 / 185.05 KiB) and the linker region
-> come from the measurement session and are labelled `[session record]` for that
-> reason. Committing the `analyze` reports and the `MEMORY` block of
-> `STM32F405RGTX_FLASH.ld` under `../build_reports/` would promote them to
-> `[file:]`; until then the derivation above is reproducible only from those
-> inputs. Every other row in this file is a DWT cycle-counter measurement and
-> does not depend on it.
+Even against this part's 128 KiB of contiguous SRAM the graph is 57.05 KiB over,
+and the 64 KiB CCM is a separate region at a disjoint address, so it cannot back
+the same allocation.
+
+The three RAM figures come from
+`[file: ../build_reports/analyze_ac3_int8.txt]` and the region from
+`[file: ../build_reports/STM32F405RGTX_FLASH.ld.MEMORY]`. Every other row in
+this file is a DWT cycle-counter read-out and does not depend on them.
 
 ## Feature front-end (CMSIS-DSP MFCC)
 

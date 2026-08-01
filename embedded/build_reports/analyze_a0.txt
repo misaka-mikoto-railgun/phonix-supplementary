@@ -1,0 +1,73 @@
+ST Edge AI Core v2.2.0-20266 2adc00962
+Created date          : 2026-08-01 21:53:54
+Parameters            : analyze --target stm32f4 --name network -m G:/EQ_PHONIX/free-music-archive-small/data/revision_gain_freq/onnx_export/a0.onnx --compression none --verbosity 1 --workspace C:/Users/ayh07/AppData/Local/Temp/mxAI_workspace10647550025828003466846451512087703 --output C:/Users/ayh07/.stm32cubemx/network_output
+
+Exec/report summary (analyze)
+-------------------------------------------------------------------------------------------------------------
+model file         :   G:\EQ_PHONIX\free-music-archive-small\data\revision_gain_freq\onnx_export\a0.onnx     
+type               :   onnx                                                                                  
+c_name             :   network                                                                               
+compression        :   none                                                                                  
+options            :   allocate-inputs, allocate-outputs                                                     
+optimization       :   balanced                                                                              
+target/series      :   stm32f4                                                                               
+workspace dir      :   C:\Users\ayh07\AppData\Local\Temp\mxAI_workspace10647550025828003466846451512087703   
+output dir         :   C:\Users\ayh07\.stm32cubemx\network_output                                            
+model_fmt          :   float                                                                                 
+model_name         :   a0                                                                                    
+model_hash         :   0x996b83385d42e59e5ac0ba094f17b955                                                    
+params #           :   204,738 items (799.76 KiB)                                                            
+-------------------------------------------------------------------------------------------------------------
+input 1/4          :   'feat', f32(1x32x10), 1.25 KBytes, activations                                        
+input 2/4          :   'room', f32(1x128), 512 Bytes, activations                                            
+input 3/4          :   'mode_onehot', f32(1x4), 16 Bytes, activations                                        
+input 4/4          :   'band', f32(1x10), 40 Bytes, activations                                              
+inputs (total)     :   1.80 KBytes                                                                           
+output 1/4         :   'room_corr', f32(1x128), 512 Bytes, activations                                       
+output 2/4         :   '_m_Mul_5_0', f32(1x7), 28 Bytes, activations                                         
+output 3/4         :   'gain', f32(1x7), 28 Bytes, activations                                               
+output 4/4         :   '_m_Mul_7_0', f32(1x7), 28 Bytes, activations                                         
+outputs (total)    :   596 Bytes                                                                             
+macc               :   3,901,505                                                                             
+weights (ro)       :   823,080 B (803.79 KiB) (1 segment) / +4,128(+0.5%) vs float model                     
+activations (rw)   :   27,704 B (27.05 KiB) (1 segment) *                                                    
+ram (total)        :   27,704 B (27.05 KiB) = 27,704 + 0 + 0                                                 
+-------------------------------------------------------------------------------------------------------------
+(*) 'input'/'output' buffers are allocated in the activations buffer
+
+
+... (per-layer dump omitted; see the full report)
+
+Operation types
+---------------- ----------- ----------- 
+operation type             #           % 
+---------------- ----------- ----------- 
+smul_f32_f32       3,428,084       87.9% 
+op_f32_f32           473,421       12.1% 
+
+
+ network_data.o                       48        16       88        0 
+ lib (toolchain)*                  4,732        36        0        0 
+ ------------------------------ -------- --------- -------- -------- 
+ RT total**                       25,112     2,891   54,044    2,148 
+ ------------------------------ -------- --------- -------- -------- 
+ weights                               0   823,080        0        0 
+ activations                           0         0        0   27,704 
+ io                                    0         0        0        0 
+ ------------------------------ -------- --------- -------- -------- 
+ TOTAL                            25,112   825,971   54,044   29,852 
+ ------------------------------ -------- --------- -------- -------- 
+ *  toolchain objects (libm/libgcc*)
+ ** RT AI runtime objects (kernels+infrastructure)
+  
+  Summary - "stm32f4" target
+  --------------------------------------------------
+               FLASH (ro)     %*   RAM (rw)       % 
+  --------------------------------------------------
+  RT total         82,047   9.1%     56,192   67.0% 
+  --------------------------------------------------
+  TOTAL           905,127            83,896         
+  --------------------------------------------------
+  *  rt/total
+
+

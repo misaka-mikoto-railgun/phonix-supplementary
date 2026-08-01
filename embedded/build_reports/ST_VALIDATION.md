@@ -7,17 +7,28 @@ separate from `manifest.md`, which is overwritten by every export.
 **Target of this export**: opset 13 (`embedded/onnx/`, manifest generated
 2026-06-22T20:40:02).
 
+**Dates, and why some figures moved.** The on-board latency figures were
+measured on 2026-06-23. The ONNX graphs were regenerated on 2026-07-29, and the
+`analyze` reports carried here were produced on 2026-08-02 against those
+regenerated graphs. Figures marked `[tool]` are from the latter and may differ
+slightly from ones recorded in June. Two other differences are definitional
+rather than drift: `analyze` weights include graph constants the tool adds, so
+they exceed `params × 4` (A0: 823,080 B against 794.7 KiB of parameters), and
+`analyze` FLASH total is an estimate rather than a linked image, so it is not the
+same quantity as the build-flash column.
+
 **Target device**: STM32F405RGT6 — 1024 KiB flash, 192 KiB total SRAM
 (128 KiB main SRAM = 112 KiB SRAM1 + 16 KiB SRAM2, contiguous and
 DMA-accessible, plus 64 KiB CCM on the D-bus with no DMA access; the separate
 4 KiB backup SRAM is not counted in the 192 KiB).
 
 **Source labels**: `[tool]` is a value read out of an `stedgeai analyze`
-report that this repository carries. `[session record]` was read during a
-measurement session and has no report file here — including the AC3 RAM
-breakdown and the linker RAM region, which would become `[file:]` if the
-`analyze` reports and the `MEMORY` block of `STM32F405RGTX_FLASH.ld` were
-committed to this directory. See `embedded/latency/MEASUREMENT_LOG.md`.
+report carried in this directory — `analyze_a0.txt`, `analyze_ac3.txt` and
+`analyze_ac3_int8.txt`, each an excerpt of the report header, the operation-type
+table and the memory footer, with the per-layer dump removed for size.
+`[session record]` was read during a measurement session and has no report file
+here; see `embedded/latency/MEASUREMENT_LOG.md` for why the on-board figures
+leave no artefact.
 
 ## Final state — 8/8 analyze + generate PASS on the FP32 graphs (AC1 as the statically unrolled graph)
 
@@ -29,27 +40,36 @@ understates the requirement by a factor of two to four.
 
 | variant | onnx | import (native) | analyze | flash weights | build flash | fits 1024 KiB | MACC (tool) | Activations | Runtime RAM | Total RAM | validate (c-model vs ref) |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| A0_Proposed | a0.onnx | PASS | PASS | 804 KiB `[session record]` | 896 KB `[session record]` | ✓ (78 %) | 3,901,505 `[tool]` | 27.05 KiB `[tool]` | 54.88 KiB `[session record]` | 81.93 KiB `[session record]` | cos ≈ 1.0, nse ≈ 1.0 (rmse ≤ 8e-4) |
+| A0_Proposed | a0.onnx | PASS | PASS | 804 KiB `[session record]` | 896 KB `[session record]` | ✓ (78 %) | 3,901,505 `[tool]` | 27,704 B (27.05 KiB) `[tool]` | 56,192 B (54.88 KiB) `[tool]` | 83,896 B (81.93 KiB) `[tool]` | cos ≈ 1.0, nse ≈ 1.0 (rmse ≤ 8e-4) |
 | A2_withPrefLoss | a2.onnx | PASS | PASS | 804 KiB `[session record]` | 896 KB `[session record]` | ✓ (78 %) | 3,901,505 `[tool]` | 27.05 KiB `[tool]` | (≡ A0) | (≡ A0) | same architecture as A0 |
 | E3_Nercessian | e3_nercessian.onnx | PASS | PASS | — | — | ✓ | 139,523 `[tool]` | 2.00 KiB `[tool]` | — | — | — |
 | E4_Pepe | e4_pepe.onnx | PASS | PASS | — | — | ✓ | 1,044,003 `[tool]` | 18.50 KiB `[tool]` | — | — | — |
 | E5_Sequential | e5_sequential.onnx | PASS | PASS | — | — | ✓ | 139,523 `[tool]` | 2.00 KiB `[tool]` | — | — | — |
 | AC1_BiLSTM_Biquad | ac1_bilstm_biquad.onnx | **FAIL**³ → unrolled graph PASS¹ | PASS¹ | ~940 KiB `[session record]` | ~1.0–1.1 MB `[session record]` | ✗ over | 4,815,819 `[tool]` | 25.94 KiB `[tool]` | — | — | room_corr cos ≈ 0.93²; fc/gain/q cos ≥ 0.9996 |
 | AC2_GRU_Biquad | ac2_gru_biquad.onnx | PASS | PASS | 1.02 MiB `[session record]` | 1.12 MB `[session record]` | ✗ over | 5,493,259 `[tool]` | 25.94 KiB `[tool]` | — | — | — |
-| AC3_Conformer_Biquad | ac3_conformer_biquad.onnx | PASS | PASS | 1.58 MiB (+58 %) `[session record]` | — | ✗ over | 44,383,435 `[tool]` | 96.94 KiB `[tool]` | 103.79 KiB (derived) | 200.73 KiB `[session record]` | — |
-| AC3_Conformer_Biquad **INT8** | ac3_conformer_biquad_int8.onnx | PASS⁴ | PASS⁴ | 667.1 KiB `[session record]` | 910.8 KiB `[session record]` | ✓ flash | — | 45.41 KiB `[session record]` | 139.64 KiB `[session record]` | 185.05 KiB `[session record]` | — |
+| AC3_Conformer_Biquad | ac3_conformer_biquad.onnx | PASS | PASS | 1.58 MiB (+58 %) `[session record]` | — | ✗ over | 44,383,435 `[tool]` | 99,264 B (96.94 KiB) `[tool]` | 106,288 B (103.80 KiB) `[tool]` | 205,552 B (200.73 KiB) `[tool]` | — |
+| AC3_Conformer_Biquad **INT8** | ac3_conformer_biquad_int8.onnx | PASS⁴ | PASS⁴ | 683,084 B (667.07 KiB) `[tool]` | 932,644 B (910.8 KiB) `[tool]` | ✓ flash | 44,699,530 `[tool]` | 46,500 B (45.41 KiB) `[tool]` | 142,988 B (139.64 KiB) `[tool]` | 189,488 B (185.05 KiB) `[tool]` | — |
 
-Blank Runtime/Total cells are not zero — the footer figure was not captured for
-those variants in the session, and nothing here reconstructs it. AC3 FP32's
-runtime is the arithmetic difference of its two recorded figures.
+Blank Runtime/Total cells are not zero: `analyze` was re-run for A0 and the two
+AC3 graphs, and the other variants' footers were not captured. Nothing here
+reconstructs them.
+
+Each row's three RAM figures satisfy activations + runtime = total, which is how
+the report's own footer is built: A0 27,704 + 56,192 = 83,896, AC3 FP32
+99,264 + 106,288 = 205,552, AC3 INT8 46,500 + 142,988 = 189,488.
 
 **The AC3 INT8 row is the one Table 6 footnote e rests on.** Its total AI RAM of
-185.05 KiB overflows the 112 KiB linker RAM region the build declares
-(`RAM (xrw) : LENGTH = 112K`) by ≈ 78 KB once the application's own ~5 KiB is
-counted; the derivation is in `embedded/latency/MEASUREMENT_LOG.md`. The overrun
-is in the runtime, not the arena: at 45.41 KiB the activations fit easily, while
-the runtime needs 139.64 KiB — 2.5× A0's — because the QDQ graph carries
-per-tensor quantisation tables and mixed-precision conversion buffers.
+189,488 B overflows the 112 KiB (114,688 B) linker RAM region the build declares
+— see `STM32F405RGTX_FLASH.ld.MEMORY` — by 74,800 B, and the application's own
+stack and heap (0x800 each) bring that to the ≈ 78 KB the paper quotes. The
+arithmetic is set out in `embedded/latency/MEASUREMENT_LOG.md`.
+
+The overrun is in the runtime, not the arena: the activations are 46,500 B and
+fit easily, while the runtime needs 142,988 B — 2.5× A0's 56,192 B — because the
+QDQ graph carries per-tensor quantisation tables and mixed-precision conversion
+buffers. Quantisation also fails to reduce the work: MACC comes out at
+44,699,530 against the FP32 graph's 44,383,435, and only 15.2 % of operations
+run in s8 while 81.4 % remain f32 (`analyze_ac3_int8.txt`, operation types).
 
 ¹ AC1 here is the statically unrolled LSTM graph (see §AC1). The analyze PASS in
 the table is the state **after** unrolling.
@@ -60,11 +80,12 @@ for; the LSD accuracy reported in the paper is measured in PyTorch.
 
 ³ The `nn.LSTM` original fails at the ST import stage (`dl_remapping`). See §AC1.
 
-⁴ The AC3 INT8 import and analyze complete, but the report carries four
-E-level errors on the attention MatMul conversion (I/O 0 and 1). The heading's
-"8/8 PASS" is about the FP32 graphs; this row is not covered by it, and the row
-is included because Table 6 footnote e depends on its RAM figures rather than on
-a clean conversion. `[session record]`
+⁴ The AC3 INT8 import and analyze complete and the report is produced, but the
+conversion is not clean: the attention MatMuls are left in float, so the
+quantised graph is mixed precision rather than integer throughout. The heading's
+"8/8 PASS" refers to the FP32 graphs; this row is outside that count. It is
+included because Table 6 footnote e depends on its RAM figures, not on a clean
+conversion. `[file: analyze_ac3_int8.txt]`
 
 **On the fit column**: the flash figure from `analyze` is essentially weights,
 while an actual build adds roughly 100 KiB of runtime and HAL. **Fit is judged on
@@ -72,9 +93,10 @@ build flash**, cross-checked on two variants (A0 804 KiB → 896 KB, AC2 1.02 Mi
 1.12 MB). `[session record]`
 
 **Total RAM is still not the application's footprint**: it is what the AI model
-needs, before the application's own stack, heap and HAL static data. Those add
-roughly 5 KiB in this project, which is why the AC3 INT8 shortfall against the
-112 KiB region works out at ≈ 78 KB rather than 73.05 KB.
+needs, before the application's own stack, heap and HAL static data. In this
+project the linker script reserves 0x800 each for stack and heap, which is why
+the AC3 INT8 shortfall against the 112 KiB region comes out at ≈ 78 KB rather
+than the 73.05 KB of the model alone.
 
 ## Transformations applied for ST compatibility (all parity-preserving; weights unchanged)
 
