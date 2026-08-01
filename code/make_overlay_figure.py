@@ -1,10 +1,11 @@
 """
-make_overlay_figure.py — R2-6 frequency-response overlay (Option A, 4 curves)
-=============================================================================
-results/fig_overlay_sample.json 을 읽어 publication-grade 벡터 PDF/PNG 생성.
-곡선: H_room=-T_room(회색) · R_hat(주황) · T_pref(검정 점선) · H_hat(파랑 굵게, z-top).
-±0.5 dB JND 음영(T_pref 둘레). log-x(20-20k), 0 dB 기준선, LSD 코너박스. Okabe-Ito.
-guard: H_hat == R_hat - T_room.
+make_overlay_figure.py — frequency-response overlay figure (4 curves)
+=====================================================================
+Reads results/fig_overlay_sample.json and renders the vector PDF/PNG.
+Curves: H_room = -T_room (grey), R_hat (orange), T_pref (black dashed),
+H_hat (blue, drawn on top). A ±0.5 dB JND band is shaded around T_pref.
+Log frequency axis (20 Hz – 20 kHz), 0 dB guide line, LSD box, Okabe-Ito
+palette. Guard: H_hat == R_hat - T_room.
 """
 import json
 from pathlib import Path

@@ -1,12 +1,17 @@
 """
-extract_overlay_sample.py — R2-6 주파수응답 overlay (단일 대표 샘플)
-====================================================================
-A0(±12·train_full, 대표 seed7)의 test_synth LSD_dual *중앙값* 샘플 1개 추출.
-±6 clamp trap 회피: gain_max=12.0 인스턴스 + ±12 ckpt, forward 전 assert.
-출력: results/fig_overlay_sample.json  (freqs/T_room/T_pref/T_dual/R_hat/H_hat + 7 bands + meta).
+extract_overlay_sample.py — frequency-response overlay, single sample
+=====================================================================
+Extracts the test_synth sample sitting at the median LSD_dual of A0
+(median-rank seed 7), so the figure shows a typical case rather than a best
+one. The model is instantiated with gain_max=12.0 and the bound is asserted
+before the forward pass, so the ±6 clamp cannot silently apply.
 
-⚠️ T_dual = clip(smooth(T_room+T_pref), ±12)  (generator L308–311) — 단순 합 아님.
-   데이터의 실제 dual_target(=R_hat이 추종하는 타깃)을 그대로 사용.
+Output: results/fig_overlay_sample.json — freqs / T_room / T_pref / T_dual /
+R_hat / H_hat, the seven individual band responses, and metadata.
+
+Note: T_dual = clip(smooth(T_room + T_pref), ±12) is not a plain sum; see
+compute_dual_target in dataset_generator_v4_tracklevel.py. The stored
+dual_target is used as-is, since that is the target R_hat is trained against.
 """
 import json
 import numpy as np

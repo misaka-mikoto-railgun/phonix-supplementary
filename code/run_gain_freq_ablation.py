@@ -1,31 +1,38 @@
 """
-run_gain_freq_ablation.py — JAES Major Revision: gain / center-freq 제약 완화 재실험
-====================================================================================
-Reviewer 지적(R1-8): Stage B 의 per-section gain ±6 dB / center-freq [80,16k] Hz
-제약이 임의적(arbitrary)이며, 학습된 출력의 57.8% 가 ±6 경계에, 17.9% 가 16k 상한
-근처에 몰려 있음 → 제약이 binding constraint 라는 증거.
+run_gain_freq_ablation.py — gain-bound and centre-frequency ablation
+====================================================================
+Stage B bounds each of the K peaking sections to a per-section gain range and
+to a centre-frequency range. Under the narrower +/-6 dB bound, 57.8 % of the
+learned gains sat within 0.2 dB of the limit and 17.9 % of the centre
+frequencies sat near the 16 kHz upper edge: the bounds were binding rather
+than merely permissive, which is what motivates measuring the relaxed setting.
 
-본 드라이버는 gain_max / fc_max 를 생성자 인자로 받는 model.py 복사본을 이용해
-2x2 매트릭스(gain ∈ {6,12} × fc_max ∈ {16k,20k})를 multi-seed 로 재학습/평가한다.
-k_ablation_0616.py 와 동일한 구조(같은 loss/optimizer/scheduler/데이터/seed 규칙).
+This driver trains and evaluates the 2x2 matrix
+(gain in {6, 12} dB  x  fc_max in {16k, 20k} Hz) over several seeds, using a
+model whose gain_max / fc_max are constructor arguments. Loss, optimiser,
+scheduler, data and seed handling are identical across the cells, so the
+bounds are the only thing that varies.
 
-★ 절대 규칙
-  - 원본(../model.py, ../checkpoints, ../data)은 read-only 참조만. 절대 수정/저장 금지.
-  - 신규 체크포인트/결과는 이 폴더(revision_gain_freq/) 안에만 저장.
-  - ±12 모델을 기존 experiments_fixed_updated.py 로 평가하면 안 됨(±6 으로 clamp 됨).
-    → 반드시 이 드라이버 내장 평가(올바른 gain_max/fc_max 로 인스턴스화)만 사용.
+The dataset and checkpoint directories are only read; every checkpoint and
+result this driver produces is written under --save_dir / --out_dir.
 
-사용법:
-  # 우선순위 1: gain 완화 2종 × 3 seed
+A checkpoint does not record the bound it was trained under. Loading a
++/-12 dB checkpoint into a model instantiated with gain_max=6.0 succeeds
+without error and then silently clamps the output, which corrupts every
+metric derived from it. All evaluation here therefore goes through this
+driver's own instantiation, which sets gain_max / fc_max explicitly.
+
+Usage:
+  # relaxed-gain cells, three seeds
   python run_gain_freq_ablation.py --configs g12_f16k g12_f20k --seeds 42 123 7
 
-  # baseline(±6/16k) 메트릭 — 원본 A0_Proposed.pt 재사용, 학습 없음
+  # +/-6 / 16k baseline metrics from the existing checkpoint (no training)
   python run_gain_freq_ablation.py --configs g6_f16k --eval_only
 
-  # 2x2 전체
+  # full 2x2
   python run_gain_freq_ablation.py --configs all --seeds 42 123 7
 
-  # dry-run 검증(학습/저장 없이 인스턴스화 + 1배치 forward + 제약값 확인)
+  # instantiate and run one batch without training, to check the bounds
   python run_gain_freq_ablation.py --dry_check
 """
 
@@ -44,9 +51,9 @@ from dataset_generator_v4_tracklevel import PEQDataset
 
 # ── 경로(절대) ────────────────────────────────────────────────────────────────
 HERE          = Path(__file__).resolve().parent
-ORIG_ROOT     = HERE.parent                                  # ...\free-music-archive-small\data
-DEFAULT_DATA  = ORIG_ROOT / "data" / "dataset_v3"            # read-only 원본 데이터
-BASELINE_CKPT = ORIG_ROOT / "checkpoints" / "full" / "A0_Proposed.pt"  # ±6/16k 비교군
+ORIG_ROOT     = HERE.parent
+DEFAULT_DATA  = ORIG_ROOT / "data" / "dataset_v3"            # read only
+BASELINE_CKPT = ORIG_ROOT / "checkpoints" / "full" / "A0_Proposed.pt"  # ±6/16k 비교군 checkpoint
 
 
 # ── 실험 매트릭스 (결정 4) ───────────────────────────────────────────────────
@@ -58,8 +65,8 @@ CONFIGS = {
 }
 PRIORITY_CONFIGS = ["g12_f16k", "g12_f20k"]
 SEEDS_DEFAULT    = [42, 123, 7]
-FIXED_GAIN_REF   = 6.0      # 보강 1(b): ±6 고정 기준
-FIXED_FC_REF     = 16000.0  # 보강 1: 16k 고정 기준
+FIXED_GAIN_REF   = 6.0      # fixed ±6 dB reference for the saturation criterion
+FIXED_FC_REF     = 16000.0  # fixed 16 kHz reference
 
 
 def set_seed(seed: int):
@@ -129,7 +136,7 @@ def lsd_per_sample(pred: np.ndarray, target: np.ndarray) -> np.ndarray:
 def evaluate(name, cfg, model, ds_test, device, batch_size=512) -> dict:
     """test set 에서 LSD/DMR/CosSim + per-section gain/fc 수집.
 
-    gain/fc 는 보강 1(saturation 두 기준) 산출용. model.forward 가 out['gain'],
+    gain/fc 는 saturation 두 기준 산출용. model.forward 가 out['gain'],
     out['fc'] 를 그대로 반환하므로 별도 재구현 불필요(model.py).
     """
     model.eval().to(device)
@@ -161,7 +168,7 @@ def evaluate(name, cfg, model, ds_test, device, batch_size=512) -> dict:
         cos_mean=float(cos_arr.mean()),
     )
 
-    # ── 보강 1: saturation / boundary 두 기준 (cfg 가 CONFIGS 키일 때만) ──────
+    # ── saturation / boundary 두 기준 (cfg 가 CONFIGS 키일 때만) ─────────────
     if gains and cfg in CONFIGS:
         gain_all = np.abs(np.concatenate(gains))   # |gain| (N,K)
         fc_all   = np.concatenate(fcs)             # fc     (N,K)
@@ -186,7 +193,7 @@ def _mean_std(vals):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# dry-run 검증 (보강 3): 학습/저장 없이 인스턴스화 + 1배치 forward + 제약값 확인
+# dry-run 검증: 학습/저장 없이 인스턴스화 + 1배치 forward + 제약값 확인
 # ══════════════════════════════════════════════════════════════════════════════
 @torch.no_grad()
 def dry_check(data_dir: Path, device):
@@ -321,7 +328,7 @@ def main():
             if V == "A0" and c == "g6_f16k":
                 break  # baseline 은 seed 무관(동일 ckpt) — 1회만
 
-    # ── 집계 (보강 2: LSD/DMR/CosSim + saturation 나란히) ────────────────────
+    # ── 집계 (LSD/DMR/CosSim + saturation 나란히) ───────────────────────────
     print(f"\n{'='*96}\nconfig 별 seed 집계 (mean ± std)  —  test={args.test_split}\n{'='*96}")
     hdr = (f"{'config':>9} {'LSD':>14} {'DMR':>8} {'CosSim':>8} "
            f"{'gain_sat%':>9} {'gain>6%':>8} {'fc_sat%':>8} {'fc>16k%':>8} {'n':>3}")

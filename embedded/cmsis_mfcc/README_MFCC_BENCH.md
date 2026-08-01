@@ -1,6 +1,6 @@
 # MFCC latency on-device 측정 (STM32F405RGT6, 168MHz, DWT)
 
-목적: full-pipeline 분해(4s 버퍼링 / **MFCC** / NN forward)로 reviewer R1-11 닫기.
+목적: full-pipeline 분해(4s 버퍼링 / **MFCC** / NN forward) 측정.
 NN A0 = 251.1ms 기측정. 여기선 **버퍼 → 모델 입력 x[32,10]** 까지 전처리 전부를 DWT로 측정.
 
 ## 파일

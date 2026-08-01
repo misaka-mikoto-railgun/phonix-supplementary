@@ -1380,8 +1380,8 @@ from model import DualObjectiveAdaptivePEQ
 from ablation import A1_NoRoomInput, A3_NoPrefInput
 from arch_biquad import AC1_BiLSTM_Biquad, AC2_GRU_Biquad, AC3_Conformer_Biquad
 MODEL_REGISTRY = {
-    # REVISION(gain±12): A0/A2 use the relaxed per-section gain bound (±12 dB);
-    # fc_max stays 16 kHz. Lambdas so load_model's MODEL_REGISTRY[name]() passes args.
+    # A0/A2 use the ±12 dB per-section gain bound; fc_max stays 16 kHz.
+    # Lambdas so load_model's MODEL_REGISTRY[name]() passes the arguments.
     "A0_Proposed":         lambda: DualObjectiveAdaptivePEQ(gain_max=12.0, fc_max=16000.0),
     "A1_NoRoomInput":      A1_NoRoomInput,
     "A2_withPrefLoss":     lambda: DualObjectiveAdaptivePEQ(gain_max=12.0, fc_max=16000.0),

@@ -1,16 +1,18 @@
 """
-verify_patch.py — gain±12 패치 게이트 (figure/track 재생성 전 필수 검증)
-========================================================================
-결정 2: build_registry / MODEL_REGISTRY 의 A0(±6 기본) 함정을 패치했는지,
-그리고 그 패치가 실제로 forward 단계에서 먹는지(±6 clamp 안 됨)를 양성 확인.
+verify_patch.py — gain-bound assertion gate
+===========================================
+gain_max is not stored in the checkpoint, so a model built with the default
+argument applies gain_max=6.0 and silently clamps a ±12 dB checkpoint. This
+gate asserts that the registries build the model with the intended bound, and
+that the bound is still in force at the forward pass.
 
-검증:
-  1. train_full.build_registry()["A0_Proposed"]/["A2_withPrefLoss"] → gain_max==12.0
-  2. experiments_fixed_updated.MODEL_REGISTRY["A0_Proposed"]()/["A2_withPrefLoss"]() → gain_max==12.0
-  3. g12 seed7 A0 체크포인트를 (1)의 모델에 로드 → test_synth 1배치 forward →
-     out['gain'] 의 max|gain| > 6.0  AND  <= 12.0   (±6 clamp 안 됨을 양성 입증)
+Checks:
+  1. train_full.build_registry()["A0_Proposed"]/["A2_withPrefLoss"] → gain_max == 12.0
+  2. experiments_fixed_updated.MODEL_REGISTRY["A0_Proposed"]()/["A2_withPrefLoss"]() → gain_max == 12.0
+  3. load a ±12 A0 checkpoint into (1), run one test_synth batch, and require
+     max|gain| > 6.0 and <= 12.0 — positive evidence that no ±6 clamp applies
 
-실패 시 exit 1 (다음 단계 진입 차단).
+Exits 1 on failure.
 """
 import sys
 import torch

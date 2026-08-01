@@ -1,7 +1,7 @@
 """
-consolidate.py — JAES revision 전체 실험 정리
-=============================================
-revision_gain_freq/paper_outputs/{tables,figures} 에
+consolidate.py — consolidated tables and figures
+================================================
+Writes to paper_outputs/{tables,figures}:
   - 모든 실험 결과를 CSV 테이블로
   - 색맹(Okabe–Ito) + 흑백인쇄 대응(마커/선종/해치 병행) figure 로
 정리. 라벨 겹침/잘림 방지(constrained_layout + bbox_inches='tight' + 회전/여백).

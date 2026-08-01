@@ -1,20 +1,25 @@
 """
-param_dist_gain_freq.py — gain/fc 분포 재측정 (saturation 두 기준)
-==================================================================
-원본 param_dist_0617.py 의 sanity-check 분석을 제약 완화 재실험용으로 적응.
-Reviewer 방어 핵심: "±6 였으면 막혔을 gain 이 ±12 모델에서 몇 % 인가"(고정 기준).
+param_dist_gain_freq.py — gain / centre-frequency distribution statistics
+========================================================================
+Sanity check on the Stage-B parameter distributions: how often the learned
+values sit against their bounds.
 
-보강 1 — gain saturation 을 두 기준으로 측정:
-  (a) 자기 boundary 기준 : |gain| > (gain_max - 0.2)   "이 설정에서도 막혔나"
-  (b) ±6 고정 기준       : |gain| > 6.0                "±6 였으면 막혔을 비율"  ★핵심
-  fc 도 동일하게:
-  (a) 자기 boundary 근처 : fc > 0.875 * fc_max,  fc < 100
-  (b) 16k 고정 기준      : fc > 16000.0                "16k 였으면 못 갔을 비율" ★핵심
+Two saturation criteria:
+  (a) own bound      : |gain| > (gain_max - 0.2)   "still pinned at this setting?"
+  (b) fixed ±6 dB    : |gain| > 6.0                "would ±6 dB have pinned it?"  ★key
+  and likewise for the centre frequency:
+  (a) near own edge  : fc > 0.875 * fc_max,  fc < 100
+  (b) fixed 16 kHz   : fc > 16000.0                "would 16 kHz have blocked it?" ★key
 
-출력: config 별 두 기준 비율 표(seed mean±std) + gain/fc 히스토그램(png/pdf).
-±12/±20k 체크포인트는 반드시 올바른 bound 로 인스턴스화해 forward(이 스크립트가 보장).
+Criterion (b) carries the argument: a large fraction beyond the fixed
+reference means the narrower bound was suppressing corrections the model
+would otherwise have produced.
 
-사용법:
+Output: per-config table of both criteria (seed mean±std) and gain/fc
+histograms (png/pdf). Each checkpoint is instantiated with its own bounds, so
+no silent clamping occurs.
+
+Usage:
   python param_dist_gain_freq.py --configs all --seeds 42 123 7
   python param_dist_gain_freq.py --configs g12_f16k g12_f20k
 """

@@ -51,10 +51,10 @@ try:
 except Exception:
     pass
 
-HERE       = Path(__file__).resolve().parent          # .../revision_gain_freq/onnx_export
-REV_ROOT   = HERE.parent                              # .../revision_gain_freq
-ORIG_ROOT  = REV_ROOT.parent                          # .../data
-sys.path.insert(0, str(REV_ROOT))                     # revision(패치본) 우선 import
+HERE       = Path(__file__).resolve().parent          # directory of this script
+REV_ROOT   = HERE.parent
+ORIG_ROOT  = REV_ROOT.parent
+sys.path.insert(0, str(REV_ROOT))                     # local modules take precedence
 
 from model import DualObjectiveAdaptivePEQ
 from baselines import E3_NercessianMLP, E4_PepeCNN, E5_Sequential

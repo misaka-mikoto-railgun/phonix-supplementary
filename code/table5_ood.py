@@ -3,7 +3,7 @@ table5_ood.py — Table 5 (OOD) + §4.4, ±12·train_full 기준
 =========================================================
 추정 없음. synth(test_synth, N=3000) 와 real(test_real, BUT+OpenAIR, N=2000) 직접 계산.
 metric: lsd vs dual_target; dmr 은 heard=pred-room vs pref. A0/A2=gain±12 3-seed; 나머지 single.
-A1 = train_full 경로(features_clean) → real 값 재추출 (구 4.875 대체).
+A1 = train_full 경로(features_clean) 기준으로 real 값 산출.
 source-wise: room_id → rir_map.json 경로로 BUT / OpenAIR 분할.
 출력: 모델별 synth LSD, real LSD, real DMR, gap(real-synth), BUT-LSD, OpenAIR-LSD.
 """
