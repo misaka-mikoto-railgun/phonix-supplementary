@@ -15,8 +15,12 @@ file is therefore expected and does not indicate an absence of measurement.
 ## Source labels
 
 - `[file: <path>]` — value verified in a file in this repository.
-- `[session record]` — value from the 2026-06-23 measurement session; no file in this
-  repository contains it.
+- `[datasheet]` — a published property of the part.
+- `[session record]` — read out during a measurement session; no file in this
+  repository contains it. The DWT figures are from 2026-06-23; the AC3 RAM
+  breakdown and the linker RAM region were read from `stedgeai analyze` and
+  `STM32F405RGTX_FLASH.ld` in a later session, and become `[file:]` once those
+  are committed under `../build_reports/`.
 
 ## Hardware
 
@@ -74,23 +78,39 @@ per-variant cycle counts other than A0; those rows are marked
 |---|---|---|---|
 | A0_Proposed | 288.3 ms | slower than FP32 on this MCU | `[session record]` |
 | AC2_GRU_Biquad | 389.6 ms | | `[session record]` |
-| AC3_Conformer_Biquad | N/A | activation buffer over budget by ≈ 78 KiB | `[session record]` |
+| AC3_Conformer_Biquad | N/A | AI RAM 185.05 KiB (45.41 activations + 139.64 runtime) overflows the 112 KiB linker RAM region by ≈ 78 KB at link time | `[session record]` |
 
 INT8 accuracy impact is in `[file: ../onnx/INT8_EVAL.md]` (that file contains accuracy
 only — no size or latency figures).
 
-**What the ≈ 78 KiB overrun is, and is not.** It is a session record. The linker
-`.map` and the CubeIDE project are not part of this repository, so two things
-cannot be re-derived here: which region the activation buffer was placed in, and
-what budget the shortfall was measured against. In particular this file does
-**not** claim that X-CUBE-AI used CCM as the activation arena, nor that it did
-not — that was never established.
+**The AC3 overrun is not an activation-buffer overflow.** The INT8 activations
+are 45.41 KiB and fit comfortably. What overflows is the total AI RAM: the
+X-CUBE-AI runtime alone needs 139.64 KiB, 2.5× A0's 54.88 KiB, because the QDQ
+graph carries per-tensor quantisation tables and mixed-precision conversion
+buffers.
 
-For scale only: ST Edge AI `analyze` reports 96.94 KiB RAM(total) for the FP32
-graph `[file: ../build_reports/ST_VALIDATION.md]`. That covers the analysed
-graph, not the built application, and is not the figure the overrun was measured
-against. Every other row in this file is a DWT cycle-counter measurement and
-does not depend on it.
+The build declares the CubeMX default RAM region, `RAM (xrw) : LENGTH = 112K`,
+which is SRAM1 only:
+
+```
+185.05 KiB (189,491 B) AI RAM
+−  112 KiB (114,688 B) linker RAM region
+=  73.05 KiB
++  ≈5 KiB application (0x400 stack + 0x200 heap + HAL bss)
+≈  78 KB   → the figure quoted in the paper
+```
+
+Even against this part's 128 KiB of contiguous SRAM the graph is 57 KiB over,
+and the 64 KiB CCM sits at a disjoint address, so it cannot back the same
+allocation.
+
+> The three figures above (45.41 / 139.64 / 185.05 KiB) and the linker region
+> come from the measurement session and are labelled `[session record]` for that
+> reason. Committing the `analyze` reports and the `MEMORY` block of
+> `STM32F405RGTX_FLASH.ld` under `../build_reports/` would promote them to
+> `[file:]`; until then the derivation above is reproducible only from those
+> inputs. Every other row in this file is a DWT cycle-counter measurement and
+> does not depend on it.
 
 ## Feature front-end (CMSIS-DSP MFCC)
 

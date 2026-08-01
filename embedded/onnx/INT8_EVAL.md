@@ -42,6 +42,21 @@ the quantisation effect alone, measured inside one pipeline.
   flash-fit result for the heavier variants under INT8, that is what the
   appendix draws on.
 
+## Why INT8 is slower on this part
+
+Accuracy is not the only thing quantisation changes, and on the F405 it does not
+buy speed: A0 measures 288.3 ms under INT8 against its FP32 figure
+(`embedded/latency/MEASUREMENT_LOG.md`). The op-type distribution says why.
+For the AC3 INT8 graph, ST Edge AI reports only **15.2 % of operators running in
+s8** against **81.4 % still in f32**, and the MACC count comes out **0.7 % higher
+than the FP32 graph** rather than lower. `[session record]`
+
+A QDQ graph that is mostly f32 spends its time on the quantise/dequantise pairs
+between the few integer kernels, and the Cortex-M4F has no SIMD path that would
+repay them. The INT8 exports are therefore worth keeping for what they do buy —
+flash footprint, which is what decides whether a variant fits at all — and not
+as a latency measure.
+
 ## Notes
 
 - The large absolute LSD of E3 / E4 is those baselines' own performance, as

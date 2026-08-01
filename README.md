@@ -67,6 +67,7 @@ Splits: `train`, `val`, `test_synth`, `test_real` (BUT ReverbDB + OpenAIR),
 | `tables/T3_tracklevel_3seed.csv`, `results_json/track_stats_3seed_*.json` | track-level aggregate quoted in Section 3.2 |
 | `tables/T4_saturation.csv`, `figures/F1_saturation_A0.*` | gain-saturation statistics (Section 3.4) |
 | `tables/seed_results.csv` | the individual seed runs that the three-seed A0/A2 rows average |
+| `results_json/gain_freq_summary_A0_test_synth.json`, `..._test_real.json` | the ±6 → ±12 comparison in Section 3.3 |
 | `embedded/` | Tables 6 and 7 (deployment footprint and on-chip latency) |
 
 ### How Table 4 is put together
@@ -109,6 +110,13 @@ is the **AC1–AC3** block (LSD deltas +0.242 / +0.235 / +0.225, mean 0.234, in
 favour of the dense variants). Note that the A2 row happens to have the same
 magnitude with the opposite sign (−0.234, in favour of A0); the two are easy to
 confuse.
+
+The Section 3.3 comparison reads off the two A0 summaries directly. Their
+`g6_f16k` and `g12_f16k` entries give synthetic 1.4423 → 1.0950, real
+1.9412 → 1.7922, and therefore a domain gap of 0.4989 → 0.6972 — the
+1.442 → 1.095, 1.941 → 1.792 and 0.499 → 0.697 the paper quotes. The gap is a
+difference of two recorded means rather than a stored field, which is why no
+table carries it.
 
 Real-time factors are machine-specific and are reported only in the paper
 (AMD Ryzen 7 9800X3D, single thread; RTF = inference latency / 4000 ms), so the
