@@ -1,102 +1,119 @@
-# ST Edge AI Core 2.2.0 — validation results (STM32F405 latency benchmark)
+# ST Edge AI Core 2.2.0 — analyze results for the STM32F405 deployment
 
 Tool: X-CUBE-AI 10.2.0 (= ST Edge AI Core v2.2.0-20266), the bundled
-`stedgeai.exe`, `--target stm32`. This document is maintained by hand and is
-separate from `manifest.md`, which is overwritten by every export.
-
-**Target of this export**: opset 13 (`embedded/onnx/`, manifest generated
-2026-06-22T20:40:02).
-
-**Dates, and why some figures moved.** The on-board latency figures were
-measured on 2026-06-23. The ONNX graphs were regenerated on 2026-07-29, and the
-`analyze` reports carried here were produced on 2026-08-02 against those
-regenerated graphs. Figures marked `[tool]` are from the latter and may differ
-slightly from ones recorded in June. Two other differences are definitional
-rather than drift: `analyze` weights include graph constants the tool adds, so
-they exceed `params × 4` (A0: 823,080 B against 794.7 KiB of parameters), and
-`analyze` FLASH total is an estimate rather than a linked image, so it is not the
-same quantity as the build-flash column.
+`stedgeai.exe`, `analyze --target stm32f4 --compression none`. This document is
+maintained by hand; `../onnx/manifest.md` is overwritten by every export.
 
 **Target device**: STM32F405RGT6 — 1024 KiB flash, 192 KiB total SRAM
 (128 KiB main SRAM = 112 KiB SRAM1 + 16 KiB SRAM2, contiguous and
 DMA-accessible, plus 64 KiB CCM on the D-bus with no DMA access; the separate
 4 KiB backup SRAM is not counted in the 192 KiB).
 
-**Source labels**: `[tool]` is a value read out of an `stedgeai analyze`
-report carried in this directory — `analyze_a0.txt`, `analyze_ac3.txt` and
-`analyze_ac3_int8.txt`, each an excerpt of the report header, the operation-type
-table and the memory footer, with the per-layer dump removed for size.
+**The linker region is 112 KiB, not 192.** The CubeMX project declares
+`RAM (xrw) : LENGTH = 112K` — SRAM1 alone — with CCM as a separate region at a
+disjoint address, so it cannot back the same allocation. The declaration is in
+`STM32F405RGTX_FLASH.ld.MEMORY`, and that is the budget the fit column is
+judged against.
+
+**Dates.** The on-board latency figures were measured on 2026-06-23. The ONNX
+graphs were regenerated on 2026-07-29, and the twelve `analyze` reports carried
+here were produced on 2026-08-02 against those regenerated graphs. Anything
+marked `[tool]` comes from the latter and may differ slightly from a June note.
+
+**Source labels**: `[tool]` is read out of one of the `analyze_*.txt` files in
+this directory — each an excerpt of the report header, the operation-type table
+and the memory footer, with the per-layer dump removed for size.
 `[session record]` was read during a measurement session and has no report file
-here; see `embedded/latency/MEASUREMENT_LOG.md` for why the on-board figures
-leave no artefact.
+here; see `../latency/MEASUREMENT_LOG.md` for why the on-board figures leave no
+artefact.
 
-## Final state — 8/8 analyze + generate PASS on the FP32 graphs (AC1 as the statically unrolled graph)
+## Memory, per variant
 
-The RAM columns are separated because they are not interchangeable.
-**Activations** is the tensor arena; **Runtime RAM** is what the X-CUBE-AI
-runtime needs alongside it; **Total RAM** is the `Total Ram:` line in the report
-footer and is the figure a link has to fit. Reporting activations alone
-understates the requirement by a factor of two to four.
+Three RAM figures, because they are not interchangeable. **Activations** is the
+tensor arena. **Runtime** is what the X-CUBE-AI runtime needs beside it.
+**Total** is the report's own `TOTAL` line and is the number a link has to fit;
+quoting activations alone understates the requirement by two to ten times.
 
-| variant | onnx | import (native) | analyze | flash weights | build flash | fits 1024 KiB | MACC (tool) | Activations | Runtime RAM | Total RAM | validate (c-model vs ref) |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| A0_Proposed | a0.onnx | PASS | PASS | 804 KiB `[session record]` | 896 KB `[session record]` | ✓ (78 %) | 3,901,505 `[tool]` | 27,704 B (27.05 KiB) `[tool]` | 56,192 B (54.88 KiB) `[tool]` | 83,896 B (81.93 KiB) `[tool]` | cos ≈ 1.0, nse ≈ 1.0 (rmse ≤ 8e-4) |
-| A2_withPrefLoss | a2.onnx | PASS | PASS | 804 KiB `[session record]` | 896 KB `[session record]` | ✓ (78 %) | 3,901,505 `[tool]` | 27.05 KiB `[tool]` | (≡ A0) | (≡ A0) | same architecture as A0 |
-| E3_Nercessian | e3_nercessian.onnx | PASS | PASS | — | — | ✓ | 139,523 `[tool]` | 2.00 KiB `[tool]` | — | — | — |
-| E4_Pepe | e4_pepe.onnx | PASS | PASS | — | — | ✓ | 1,044,003 `[tool]` | 18.50 KiB `[tool]` | — | — | — |
-| E5_Sequential | e5_sequential.onnx | PASS | PASS | — | — | ✓ | 139,523 `[tool]` | 2.00 KiB `[tool]` | — | — | — |
-| AC1_BiLSTM_Biquad | ac1_bilstm_biquad.onnx | **FAIL**³ → unrolled graph PASS¹ | PASS¹ | ~940 KiB `[session record]` | ~1.0–1.1 MB `[session record]` | ✗ over | 4,815,819 `[tool]` | 25.94 KiB `[tool]` | — | — | room_corr cos ≈ 0.93²; fc/gain/q cos ≥ 0.9996 |
-| AC2_GRU_Biquad | ac2_gru_biquad.onnx | PASS | PASS | 1.02 MiB `[session record]` | 1.12 MB `[session record]` | ✗ over | 5,493,259 `[tool]` | 25.94 KiB `[tool]` | — | — | — |
-| AC3_Conformer_Biquad | ac3_conformer_biquad.onnx | PASS | PASS | 1.58 MiB (+58 %) `[session record]` | — | ✗ over | 44,383,435 `[tool]` | 99,264 B (96.94 KiB) `[tool]` | 106,288 B (103.80 KiB) `[tool]` | 205,552 B (200.73 KiB) `[tool]` | — |
-| AC3_Conformer_Biquad **INT8** | ac3_conformer_biquad_int8.onnx | PASS⁴ | PASS⁴ | 683,084 B (667.07 KiB) `[tool]` | 932,644 B (910.8 KiB) `[tool]` | ✓ flash | 44,699,530 `[tool]` | 46,500 B (45.41 KiB) `[tool]` | 142,988 B (139.64 KiB) `[tool]` | 189,488 B (185.05 KiB) `[tool]` | — |
+`Fit RAM` is against the 112 KiB (114,688 B) linker region, before the
+application's own stack and heap (0x800 each in this project).
 
-Blank Runtime/Total cells are not zero: `analyze` was re-run for A0 and the two
-AC3 graphs, and the other variants' footers were not captured. Nothing here
-reconstructs them.
+| variant | format | MACC | weights (B) | flash total (B) | fit flash | activations (B) | runtime (B) | **RAM total (B)** | fit RAM |
+|---|---|---|---|---|---|---|---|---|---|
+| A0 / A2 | float | 3,901,505 | 823,080 | 905,127 | ✓ | 27,704 | 56,192 | **83,896** | ✓ |
+| A0 INT8 | ss/sa per channel | 4,031,544 | 467,884 | 626,617 | ✓ | 25,856 | 80,628 | **106,484** | ✓ |
+| E3 (Nercessian) | float | 139,523 | 553,140 | 568,651 | ✓ | 2,048 | 4,624 | **6,672** | ✓ |
+| E3 INT8 | ss/sa per channel | 138,655 | 140,704 | 171,051 | ✓ | 3,584 | 5,216 | **8,800** | ✓ |
+| E4 (Pepe) | float | 1,044,003 | 201,524 | 220,059 | ✓ | 18,944 | 5,576 | **24,520** | ✓ |
+| E4 INT8 | sa/sa per tensor | 1,036,567 | 51,472 | 84,043 | ✓ | 12,032 | 5,936 | **17,968** | ✓ |
+| E5 (Sequential) | float | 139,523 | 553,140 | 568,651 | ✓ | 2,048 | 4,624 | **6,672** | ✓ |
+| AC1 (BiLSTM, unrolled) | float | 4,815,819 | 971,692 | 1,277,193 | ✗ | 26,560 | 251,520 | **278,080** | ✗ |
+| AC2 (GRU) | float | 5,493,259 | 1,072,056 | 1,164,688 | ✗ | 26,560 | 57,980 | **84,540** | ✓ |
+| AC2 INT8 | ss/sa per channel | 5,627,201 | 680,312 | 832,410 | ✓ | 25,600 | 82,292 | **107,892** | ✓ |
+| AC3 (Conformer) | float | 44,383,435 | 1,656,164 | 1,796,380 | ✗ | 99,264 | 106,288 | **205,552** | ✗ |
+| AC3 INT8 | sa/sa per tensor | 44,699,530 | 683,084 | 932,644 | ✓ | 46,500 | 142,988 | **189,488** | ✗ |
 
-Each row's three RAM figures satisfy activations + runtime = total, which is how
-the report's own footer is built: A0 27,704 + 56,192 = 83,896, AC3 FP32
-99,264 + 106,288 = 205,552, AC3 INT8 46,500 + 142,988 = 189,488.
+All `[tool]`. Every row satisfies activations + runtime = total, which is how the
+report footer is built. E5 and E3 share a graph and therefore a row of figures.
+A2 is architecturally identical to A0.
 
-**The AC3 INT8 row is the one Table 6 footnote e rests on.** Its total AI RAM of
-189,488 B overflows the 112 KiB (114,688 B) linker RAM region the build declares
-— see `STM32F405RGTX_FLASH.ld.MEMORY` — by 74,800 B, and the application's own
-stack and heap (0x800 each) bring that to the ≈ 78 KB the paper quotes. The
-arithmetic is set out in `embedded/latency/MEASUREMENT_LOG.md`.
+**A0 is the only proposed-family variant that fits in FP32**, on both flash and
+RAM, and it fits with the runtime already counted.
 
-The overrun is in the runtime, not the arena: the activations are 46,500 B and
-fit easily, while the runtime needs 142,988 B — 2.5× A0's 56,192 B — because the
-QDQ graph carries per-tensor quantisation tables and mixed-precision conversion
-buffers. Quantisation also fails to reduce the work: MACC comes out at
-44,699,530 against the FP32 graph's 44,383,435, and only 15.2 % of operations
-run in s8 while 81.4 % remain f32 (`analyze_ac3_int8.txt`, operation types).
+**AC1 fails on RAM as well as flash.** Its runtime alone is 251,520 B — more
+than twice the 112 KiB region — which the earlier record did not show, because
+it reported activations only (26,560 B) and those fit easily. Flash was the
+blocker that got recorded; RAM was a second one.
 
-¹ AC1 here is the statically unrolled LSTM graph (see §AC1). The analyze PASS in
-the table is the state **after** unrolling.
+**AC3 INT8 is the row Table 6 footnote e rests on.** INT8 brings its flash
+inside budget (932,644 B against 1024 KiB) but its RAM total to 189,488 B:
 
-² Float accumulation difference across the 32-step recursion, on random
-validation input. It does not bear on latency, which is what this export is
-for; the LSD accuracy reported in the paper is measured in PyTorch.
+```
+189,488 B  AI RAM total   (46,500 activations + 142,988 runtime)
+−114,688 B  linker RAM region (112 KiB)
+=  74,800 B  =  73.05 KiB
++   4,096 B  application stack + heap (0x800 each), before HAL static data
+≈  78 KB    → the figure quoted in the paper
+```
 
-³ The `nn.LSTM` original fails at the ST import stage (`dl_remapping`). See §AC1.
+Against this part's 128 KiB of contiguous SRAM it is still 57.05 KiB over. The
+overrun is in the runtime, not the arena: at 46,500 B the activations fit
+easily, while the runtime needs 142,988 B — 2.5× A0's 56,192 B.
 
-⁴ The AC3 INT8 import and analyze complete and the report is produced, but the
-conversion is not clean: the attention MatMuls are left in float, so the
-quantised graph is mixed precision rather than integer throughout. The heading's
-"8/8 PASS" refers to the FP32 graphs; this row is outside that count. It is
-included because Table 6 footnote e depends on its RAM figures, not on a clean
-conversion. `[file: analyze_ac3_int8.txt]`
+## Why INT8 costs latency here rather than saving it
 
-**On the fit column**: the flash figure from `analyze` is essentially weights,
-while an actual build adds roughly 100 KiB of runtime and HAL. **Fit is judged on
-build flash**, cross-checked on two variants (A0 804 KiB → 896 KB, AC2 1.02 MiB →
-1.12 MB). `[session record]`
+The operation-type tables separate the variants into two groups.
 
-**Total RAM is still not the application's footprint**: it is what the AI model
-needs, before the application's own stack, heap and HAL static data. In this
-project the linker script reserves 0x800 each for stack and heap, which is why
-the AC3 INT8 shortfall against the 112 KiB region comes out at ≈ 78 KB rather
-than the 73.05 KB of the model alone.
+| variant | s8 | f32 | MACC vs its FP32 graph |
+|---|---|---|---|
+| E3 INT8 | 99.7 % | 0.2 % | 138,655 vs 139,523 (−0.6 %) |
+| E4 INT8 | 100.0 % | 0.0 % | 1,036,567 vs 1,044,003 (−0.7 %) |
+| A0 INT8 | 15.7 % | 80.1 % | 4,031,544 vs 3,901,505 (**+3.3 %**) |
+| AC2 INT8 | 11.4 % | 85.5 % | 5,627,201 vs 5,493,259 (**+2.4 %**) |
+| AC3 INT8 | 15.8 % | 83.4 % | 44,699,530 vs 44,383,435 (**+0.7 %**) |
+
+The external baselines are plain feed-forward stacks and quantise essentially
+completely. The proposed model and the architecture comparators do not: they
+keep 80–86 % of their operations in float, so the graph is mixed precision and
+pays for a quantise/dequantise pair at every boundary. The MACC count rises
+rather than falls, and the Cortex-M4F has no SIMD path that would repay the
+integer kernels that do exist.
+
+That is the measured explanation for A0's INT8 latency of 288.3 ms against
+251.1 ms in FP32 (`../latency/MEASUREMENT_LOG.md`). INT8 is worth keeping here
+for flash footprint — which is what decides whether AC2 and AC3 fit at all — and
+not as a latency measure.
+
+For AC3 specifically the attention MatMuls are left in float, which is both why
+its s8 share is 15.8 % and why its runtime RAM is the largest of the set.
+
+## Import: what needed changing, and what could not be fixed
+
+Eight FP32 graphs import and analyze. AC1 needed the LSTM unrolled first (§AC1
+below); the rest needed the transformations listed after it. Those are
+parity-preserving and leave the weights untouched.
+
+The INT8 graphs analyze but are not clean conversions, as the table above shows.
+No claim is made here that they are.
 
 ## Transformations applied for ST compatibility (all parity-preserving; weights unchanged)
 
@@ -116,7 +133,7 @@ than the 73.05 KB of the model alone.
   MatMulAddFusion stops the unrolled LSTM from fusing a variable tensor into a
   Gemm bias; it has no effect on the other models.
 
-## AC1 — static BiLSTM unrolling (the substantive one)
+## AC1 — static BiLSTM unrolling
 
 The `nn.LSTM` version cannot be imported: ST fails to remap the transpose from
 TCN (Conv1d) output to LSTM input. The original bidirectional form, a
@@ -147,16 +164,24 @@ representative. Implementation constraints imposed by ST:
 - 2-D Gemm throughout (no 3-D), and batch-agnostic `h`/`c` initialisation via
   `x.new_zeros(x.shape[0], H)`.
 
-Self-check against the original BiLSTM: error ≈ 3e-8, i.e. bit-identical.
+Self-check against the original BiLSTM: error ≈ 3e-8, i.e. bit-identical. Its
+c-model validation gives room_corr cos ≈ 0.93 with fc/gain/q cos ≥ 0.9996; the
+room_corr difference is float accumulation across the 32-step recursion on random
+validation input and does not bear on latency, which is what this export is for.
+The LSD accuracy reported in the paper is measured in PyTorch.
 
 ## Notes
 
-- The `_m_Mul_*_0` output labels in the report are internal `stedgeai` node
-  names. The ONNX files' own outputs are `room_corr` / `fc` / `gain` / `q`. When
+- A0's c-model validation: cos ≈ 1.0, nse ≈ 1.0, rmse ≤ 8e-4.
+- The `_m_Mul_*_0` output labels in a report are internal `stedgeai` node names.
+  The ONNX files' own outputs are `room_corr` / `fc` / `gain` / `q`. When
   integrating the generated C, the output order is
   `[room_corr(128), fc(7), gain(7), q(7)]`; the E-series models use `[fc, gain, q]`
   with 5 bands.
-- `duration ms/sample` in the report is a host (x86) figure. The F405 latency is
+- `duration ms/sample` in a report is a host (x86) figure. The F405 latency is
   measured on the board with the DWT cycle counter.
-- FP32 weight sizes are reproducible as `params × 4 / 1024`; see
-  `embedded/onnx/verify_fp32_weights.py`.
+- Two figures are definitional rather than drift: `analyze` weights include graph
+  constants the tool adds, so they exceed `params × 4` (A0: 823,080 B against
+  794.7 KiB of parameters), and the `analyze` flash total is an estimate rather
+  than a linked image. FP32 weight sizes from the parameter counts are
+  reproducible with `../onnx/verify_fp32_weights.py`.

@@ -74,7 +74,7 @@ per-variant cycle counts other than A0; those rows are marked
 
 | variant | latency | note | source |
 |---|---|---|---|
-| A0_Proposed | 288.3 ms | slower than FP32 on this MCU | `[session record]` |
+| A0_Proposed | 288.3 ms | slower than the 251.09 ms FP32 figure: only 15.7 % of its operations quantise, and MACC rises 3.3 % | `[session record]`, `[file: ../build_reports/analyze_a0_int8.txt]` |
 | AC2_GRU_Biquad | 389.6 ms | | `[session record]` |
 | AC3_Conformer_Biquad | N/A | AI RAM 189,488 B (185.05 KiB) overflows the 112 KiB linker RAM region by ≈ 78 KB at link time | `[file: ../build_reports/analyze_ac3_int8.txt]`, `[file: ../build_reports/STM32F405RGTX_FLASH.ld.MEMORY]` |
 

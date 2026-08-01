@@ -1,0 +1,80 @@
+ST Edge AI Core v2.2.0-20266 2adc00962
+Created date          : 2026-08-02 06:47:23
+Parameters            : analyze --target stm32f4 --name network -m G:/EQ_PHONIX/free-music-archive-small/data/revision_gain_freq/onnx_export/ac1_bilstm_biquad.onnx --compression none --verbosity 1 --workspace C:/Users/ayh07/AppData/Local/Temp/mxAI_workspace109670178585650013635796642072644607 --output C:/Users/ayh07/.stm32cubemx/network_output
+
+Exec/report summary (analyze)
+--------------------------------------------------------------------------------------------------------------------------
+model file         :   G:\EQ_PHONIX\free-music-archive-small\data\revision_gain_freq\onnx_export\ac1_bilstm_biquad.onnx   
+type               :   onnx                                                                                               
+c_name             :   network                                                                                            
+compression        :   none                                                                                               
+options            :   allocate-inputs, allocate-outputs                                                                  
+optimization       :   balanced                                                                                           
+target/series      :   stm32f4                                                                                            
+workspace dir      :   C:\Users\ayh07\AppData\Local\Temp\mxAI_workspace109670178585650013635796642072644607               
+output dir         :   C:\Users\ayh07\.stm32cubemx\network_output                                                         
+model_fmt          :   float                                                                                              
+model_name         :   ac1_bilstm_biquad                                                                                  
+model_hash         :   0x8ac9b22013555cf60d7ee88aa3bdebfb                                                                 
+params #           :   241,890 items (944.88 KiB)                                                                         
+--------------------------------------------------------------------------------------------------------------------------
+input 1/4          :   'feat', f32(1x32x10), 1.25 KBytes, activations                                                     
+input 2/4          :   'room', f32(1x128), 512 Bytes, activations                                                         
+input 3/4          :   'mode_onehot', f32(1x4), 16 Bytes, activations                                                     
+input 4/4          :   'band', f32(1x10), 40 Bytes, activations                                                           
+inputs (total)     :   1.80 KBytes                                                                                        
+output 1/4         :   'room_corr', f32(1x128), 512 Bytes, activations                                                    
+output 2/4         :   '_m_Mul_2_0', f32(1x7), 28 Bytes, activations                                                      
+output 3/4         :   'gain', f32(1x7), 28 Bytes, activations                                                            
+output 4/4         :   '_m_Mul_4_0', f32(1x7), 28 Bytes, activations                                                      
+outputs (total)    :   596 Bytes                                                                                          
+macc               :   4,815,819                                                                                          
+weights (ro)       :   971,692 B (948.92 KiB) (1 segment) / +4,132(+0.4%) vs float model                                  
+activations (rw)   :   26,560 B (25.94 KiB) (1 segment) *                                                                 
+ram (total)        :   26,560 B (25.94 KiB) = 26,560 + 0 + 0                                                              
+--------------------------------------------------------------------------------------------------------------------------
+(*) 'input'/'output' buffers are allocated in the activations buffer
+
+
+... (per-layer dump omitted; the full report is ~0.5-2 MB and no figure quoted in this repository comes from it)
+
+Number of operation types
+---------------- ----------- ----------- 
+operation type             #           % 
+---------------- ----------- ----------- 
+smul_f32_f32       4,230,078       87.8% 
+op_f32_f32           585,741       12.2% 
+smul_f32_s32               0        0.0% 
+
+Complexity report (model)
+------ ------------------------------------------ ------------------------- ------------------------- -------------- 
+m_id   name                                       c_macc                    c_rom                     c_id           
+------ ------------------------------------------ ------------------------- ------------------------- -------------- 
+
+ network.o                        19,480    24,985   240,844   10,588 
+ NetworkRuntime1020_CM4_GCC.a     15,268         0         0        0 
+ network_data.o                       48        16        88        0 
+ lib (toolchain)*                  4,732        36         0        0 
+ ------------------------------ -------- --------- --------- -------- 
+ RT total**                       39,528    25,037   240,932   10,588 
+ ------------------------------ -------- --------- --------- -------- 
+ weights                               0   971,696         0        0 
+ activations                           0         0         0   26,560 
+ io                                    0         0         0        0 
+ ------------------------------ -------- --------- --------- -------- 
+ TOTAL                            39,528   996,733   240,932   37,148 
+ ------------------------------ -------- --------- --------- -------- 
+ *  toolchain objects (libm/libgcc*)
+ ** RT AI runtime objects (kernels+infrastructure)
+  
+  Summary - "stm32f4" target
+  ---------------------------------------------------
+               FLASH (ro)      %*   RAM (rw)       % 
+  ---------------------------------------------------
+  RT total        305,497   23.9%    251,520   90.4% 
+  ---------------------------------------------------
+  TOTAL         1,277,193            278,080         
+  ---------------------------------------------------
+  *  rt/total
+
+

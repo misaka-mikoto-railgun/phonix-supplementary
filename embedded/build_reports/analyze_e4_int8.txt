@@ -1,0 +1,80 @@
+ST Edge AI Core v2.2.0-20266 2adc00962
+Created date          : 2026-08-02 06:56:11
+Parameters            : analyze --target stm32f4 --name network -m G:/EQ_PHONIX/free-music-archive-small/data/revision_gain_freq/onnx_export/e4_pepe_int8.onnx --compression none --verbosity 1 --workspace C:/Users/ayh07/AppData/Local/Temp/mxAI_workspace10973047625970004394023657114678696 --output C:/Users/ayh07/.stm32cubemx/network_output
+
+Exec/report summary (analyze)
+---------------------------------------------------------------------------------------------------------------------
+model file         :   G:\EQ_PHONIX\free-music-archive-small\data\revision_gain_freq\onnx_export\e4_pepe_int8.onnx   
+type               :   onnx                                                                                          
+c_name             :   network                                                                                       
+compression        :   none                                                                                          
+options            :   allocate-inputs, allocate-outputs                                                             
+optimization       :   balanced                                                                                      
+target/series      :   stm32f4                                                                                       
+workspace dir      :   C:\Users\ayh07\AppData\Local\Temp\mxAI_workspace10973047625970004394023657114678696           
+output dir         :   C:\Users\ayh07\.stm32cubemx\network_output                                                    
+model_fmt          :   sa/sa per tensor                                                                              
+model_name         :   e4_pepe_int8                                                                                  
+model_hash         :   0x68872937201595cebbf22abc4944269e                                                            
+params #           :   50,356 items (196.70 KiB)                                                                     
+---------------------------------------------------------------------------------------------------------------------
+input 1/1          :   'feat', int8(1x32x10), 320 Bytes, QLinear(0.043562151,-1,int8), activations                   
+output 1/3         :   'fc_QuantizeLinear_Input', int8(1x5), 5 Bytes, QLinear(51.304466248,-128,int8), activations   
+output 2/3         :   'gain_QuantizeLinear_Input', int8(1x5), 5 Bytes, QLinear(0.077613786,22,int8), activations    
+output 3/3         :   'q_QuantizeLinear_Input', int8(1x5), 5 Bytes, QLinear(0.017903890,-128,int8), activations     
+outputs (total)    :   15 Bytes                                                                                      
+macc               :   1,036,567                                                                                     
+weights (ro)       :   51,472 B (50.27 KiB) (1 segment) / -149,952(-74.4%) vs float model                            
+activations (rw)   :   12,032 B (11.75 KiB) (1 segment) *                                                            
+ram (total)        :   12,032 B (11.75 KiB) = 12,032 + 0 + 0                                                         
+---------------------------------------------------------------------------------------------------------------------
+(*) 'input'/'output' buffers are allocated in the activations buffer
+
+Model name - e4_pepe_int8
+------ ---------------------------------------------------------------- ------------------ --------------- --------- -------------------------------- --- ------------------ ----------------- --------------------- 
+m_id   layer (type,original)                                            oshape             param/size           macc                     connected to   | c_size             c_macc            c_type                
+------ ---------------------------------------------------------------- ------------------ --------------- --------- -------------------------------- --- ------------------ ----------------- --------------------- 
+0      feat (Input, )                                                   [b:1,h:32,c:10]                                                                 |                                      
+
+... (per-layer dump omitted; the full report is ~0.5-2 MB and no figure quoted in this repository comes from it)
+
+Number of operation types
+---------------- ----------- ----------- 
+operation type             #           % 
+---------------- ----------- ----------- 
+smul_s8_s8         1,036,527      100.0% 
+op_s8_s8                  40        0.0% 
+
+Complexity report (model)
+------ ----------------------------------------- ------------------------- ------------------------- -------- 
+m_id   name                                      c_macc                    c_rom                     c_id     
+------ ----------------------------------------- ------------------------- ------------------------- -------- 
+19     _m_cnn_cnn_1_Relu_output_0                |                  3.0%   |                  2.1%   [0, 1]   
+
+ NetworkRuntime1020_CM4_GCC.a     20,216        0       0        0 
+ network.o                           992    3,647   5,448      400 
+ network_data.o                       48       16      88        0 
+ lib (toolchain)*                  2,116        0       0        0 
+ ------------------------------ -------- -------- ------- -------- 
+ RT total**                       23,372    3,663   5,536      400 
+ ------------------------------ -------- -------- ------- -------- 
+ weights                               0   51,472       0        0 
+ activations                           0        0       0   12,032 
+ io                                    0        0       0        0 
+ ------------------------------ -------- -------- ------- -------- 
+ TOTAL                            23,372   55,135   5,536   12,432 
+ ------------------------------ -------- -------- ------- -------- 
+ *  toolchain objects (libm/libgcc*)
+ ** RT AI runtime objects (kernels+infrastructure)
+  
+  Summary - "stm32f4" target
+  ---------------------------------------------------
+               FLASH (ro)      %*   RAM (rw)       % 
+  ---------------------------------------------------
+  RT total         32,571   38.8%      5,936   33.0% 
+  ---------------------------------------------------
+  TOTAL            84,043             17,968         
+  ---------------------------------------------------
+  *  rt/total
+
+

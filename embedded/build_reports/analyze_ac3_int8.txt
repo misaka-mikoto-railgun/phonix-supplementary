@@ -36,9 +36,9 @@ ram (total)        :   46,500 B (45.41 KiB) = 46,500 + 0 + 0
 (*) 'input'/'output' buffers are allocated in the activations buffer
 
 
-... (per-layer dump omitted; see the full report)
+... (per-layer dump omitted; the full report is ~0.5-2 MB and no figure quoted in this repository comes from it)
 
-Operation types
+Number of operation types
 ---------------- ------------ ----------- 
 operation type              #           % 
 ---------------- ------------ ----------- 
@@ -51,6 +51,8 @@ op_s8_s8              255,327        0.6%
 smul_s8_s32                 0        0.0% 
 
 
+ NetworkRuntime1020_CM4_GCC.a     56,316         0         0        0 
+ network.o                        12,872    37,204   137,012    5,888 
  network_data.o                       48        16        88        0 
  lib (toolchain)*                  5,976        24         0        0 
  ------------------------------ -------- --------- --------- -------- 

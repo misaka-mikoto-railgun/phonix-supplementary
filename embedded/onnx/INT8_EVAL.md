@@ -45,21 +45,31 @@ the quantisation effect alone, measured inside one pipeline.
 ## Why INT8 is slower on this part
 
 Accuracy is not the only thing quantisation changes, and on the F405 it does not
-buy speed: A0 measures 288.3 ms under INT8 against its FP32 figure
-(`embedded/latency/MEASUREMENT_LOG.md`). The op-type distribution says why.
-For the AC3 INT8 graph, ST Edge AI reports only **15.2 % of operations running in
-s8** (6,801,049 of 44,699,530) against **81.4 % still in f32** (36,402,578), and
-the MACC count comes out **0.71 % higher** than the FP32 graph's 44,383,435
-rather than lower — the attention MatMuls are not quantised, so the graph is
-mixed precision and pays for the conversions.
-`[file: ../build_reports/analyze_ac3_int8.txt]`,
-`[file: ../build_reports/analyze_ac3.txt]`
+buy speed: A0 measures 288.3 ms under INT8 against 251.1 ms in FP32
+(`embedded/latency/MEASUREMENT_LOG.md`). The operation-type tables say why, and
+they split the models into two groups.
 
-A QDQ graph that is mostly f32 spends its time on the quantise/dequantise pairs
-between the few integer kernels, and the Cortex-M4F has no SIMD path that would
-repay them. The INT8 exports are therefore worth keeping for what they do buy —
-flash footprint, which is what decides whether a variant fits at all — and not
-as a latency measure.
+| variant | s8 | f32 | MACC vs its FP32 graph |
+|---|---|---|---|
+| E3 INT8 | 99.7 % | 0.2 % | 138,655 vs 139,523 (−0.6 %) |
+| E4 INT8 | 100.0 % | 0.0 % | 1,036,567 vs 1,044,003 (−0.7 %) |
+| A0 INT8 | 15.7 % | 80.1 % | 4,031,544 vs 3,901,505 (**+3.3 %**) |
+| AC2 INT8 | 11.4 % | 85.5 % | 5,627,201 vs 5,493,259 (**+2.4 %**) |
+| AC3 INT8 | 15.8 % | 83.4 % | 44,699,530 vs 44,383,435 (**+0.7 %**) |
+
+The external baselines are plain feed-forward stacks and quantise essentially
+completely, and their MACC falls. The proposed model and the architecture
+comparators do not: they keep 80–86 % of their operations in float, so the graph
+is mixed precision and pays for a quantise/dequantise pair at every boundary.
+The MACC count rises instead of falling, and the Cortex-M4F has no SIMD path
+that would repay the integer kernels that do exist. For AC3 the attention
+MatMuls in particular are left in float.
+
+So the accuracy figures above and the latency are answering different questions.
+INT8 is worth keeping here for flash footprint — which is what decides whether
+AC2 and AC3 fit at all — and not as a latency measure.
+`[file: ../build_reports/ST_VALIDATION.md]` collects the per-variant memory and
+operation-type figures; the reports themselves are `analyze_*.txt` beside it.
 
 ## Notes
 

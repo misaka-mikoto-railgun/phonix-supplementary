@@ -1,0 +1,80 @@
+ST Edge AI Core v2.2.0-20266 2adc00962
+Created date          : 2026-08-02 07:06:54
+Parameters            : analyze --target stm32f4 --name network -m G:/EQ_PHONIX/free-music-archive-small/data/revision_gain_freq/onnx_export/a0_int8.onnx --compression none --verbosity 1 --workspace C:/Users/ayh07/AppData/Local/Temp/mxAI_workspace109792489991860014604568941912278401 --output C:/Users/ayh07/.stm32cubemx/network_output
+
+Exec/report summary (analyze)
+----------------------------------------------------------------------------------------------------------------------------
+model file         :   G:\EQ_PHONIX\free-music-archive-small\data\revision_gain_freq\onnx_export\a0_int8.onnx               
+type               :   onnx                                                                                                 
+c_name             :   network                                                                                              
+compression        :   none                                                                                                 
+options            :   allocate-inputs, allocate-outputs                                                                    
+optimization       :   balanced                                                                                             
+target/series      :   stm32f4                                                                                              
+workspace dir      :   C:\Users\ayh07\AppData\Local\Temp\mxAI_workspace109792489991860014604568941912278401                 
+output dir         :   C:\Users\ayh07\.stm32cubemx\network_output                                                           
+model_fmt          :   ss/sa per channel                                                                                    
+model_name         :   a0_int8                                                                                              
+model_hash         :   0xc212be524b4b94c81927ed981893a161                                                                   
+params #           :   204,738 items (799.76 KiB)                                                                           
+----------------------------------------------------------------------------------------------------------------------------
+input 1/4          :   'feat', int8(1x32x10), 320 Bytes, QLinear(0.043562151,-1,int8), activations                          
+input 2/4          :   'room', int8(1x128), 128 Bytes, QLinear(0.094117649,0,int8), activations                             
+input 3/4          :   'mode_onehot', int8(1x4), 4 Bytes, QLinear(0.003921569,-128,int8), activations                       
+input 4/4          :   'band', int8(1x10), 10 Bytes, QLinear(0.072548650,-11,int8), activations                             
+inputs (total)     :   462 Bytes                                                                                            
+output 1/4         :   'room_corr_QuantizeLinear_Input', int8(1x128), 128 Bytes, QLinear(0.071507551,2,int8), activations   
+output 2/4         :   'fc_QuantizeLinear_Input', int8(1x7), 7 Bytes, QLinear(62.432792664,-128,int8), activations          
+output 3/4         :   'gain_QuantizeLinear_Input', int8(1x7), 7 Bytes, QLinear(0.093942024,-1,int8), activations           
+output 4/4         :   'q_QuantizeLinear_Input', int8(1x7), 7 Bytes, QLinear(0.031223753,-128,int8), activations            
+outputs (total)    :   149 Bytes                                                                                            
+macc               :   4,031,544                                                                                            
+weights (ro)       :   467,884 B (456.92 KiB) (1 segment) / -351,068(-42.9%) vs float model                                 
+activations (rw)   :   25,856 B (25.25 KiB) (1 segment) *                                                                   
+ram (total)        :   25,856 B (25.25 KiB) = 25,856 + 0 + 0                                                                
+----------------------------------------------------------------------------------------------------------------------------
+(*) 'input'/'output' buffers are allocated in the activations buffer
+
+
+... (per-layer dump omitted; the full report is ~0.5-2 MB and no figure quoted in this repository comes from it)
+
+Number of operation types
+---------------- ----------- ----------- 
+operation type             #           % 
+---------------- ----------- ----------- 
+smul_s8_s8           528,775       13.1% 
+smul_s8_f32           91,784        2.3% 
+smul_f32_f32       2,794,642       69.3% 
+op_f32_f32           436,336       10.8% 
+smul_f32_s8           76,552        1.9% 
+op_s8_s8             103,455        2.6% 
+
+Complexity report (model)
+
+ NetworkRuntime1020_CM4_GCC.a     51,824         0        0        0 
+ network.o                         7,544    16,157   77,052    3,488 
+ network_data.o                       48        16       88        0 
+ lib (toolchain)*                  5,976        24        0        0 
+ ------------------------------ -------- --------- -------- -------- 
+ RT total**                       65,392    16,197   77,140    3,488 
+ ------------------------------ -------- --------- -------- -------- 
+ weights                               0   467,888        0        0 
+ activations                           0         0        0   25,856 
+ io                                    0         0        0        0 
+ ------------------------------ -------- --------- -------- -------- 
+ TOTAL                            65,392   484,085   77,140   29,344 
+ ------------------------------ -------- --------- -------- -------- 
+ *  toolchain objects (libm/libgcc*)
+ ** RT AI runtime objects (kernels+infrastructure)
+  
+  Summary - "stm32f4" target
+  ---------------------------------------------------
+               FLASH (ro)      %*   RAM (rw)       % 
+  ---------------------------------------------------
+  RT total        158,729   25.3%     80,628   75.7% 
+  ---------------------------------------------------
+  TOTAL           626,617            106,484         
+  ---------------------------------------------------
+  *  rt/total
+
+
