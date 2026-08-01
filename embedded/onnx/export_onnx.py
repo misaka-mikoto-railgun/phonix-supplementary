@@ -629,7 +629,7 @@ def write_manifest_md(man):
              "(removes searchsorted; parity preserved)")
     L.append("- mode embedding (nn.Embedding Gather) replaced by a one-hot matmul "
              "(ST Edge AI Core mistook the embedding table's leading dimension "
-             "for a batch; the one-hot encoding is done on the host)" + chr(10))
+             "for a batch; the one-hot encoding is done on the host)\n")
     L.append("- standalone Pad folded into Conv.pads (fold_pad_into_conv), working "
              "around the Pad codegen bug in X-CUBE-AI 10.2.0. "
              "Causal pads=[(k-1)*dilation, 0]")
