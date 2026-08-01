@@ -24,6 +24,7 @@ import json
 import warnings
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
+import ckpt_io
 from baselines import DifferentiablePEQResponse
 try:
     from alpha_sweep_patch import run_alpha_sweep, fig12_alpha_sensitivity_v2
@@ -506,11 +507,15 @@ def _room_curve_for_plot(result: dict) -> np.ndarray:
 
 
 def _display_name(name: str) -> str:
+    # Historical names, resolved the same way as model_aliases.py. Verified by
+    # SHA-256: checkpoints/full/A2_NoPrefLoss.pt is byte-identical to
+    # A0_Proposed.pt, and A0_Full.pt to A2_withPrefLoss.pt. This map used to
+    # have the two the other way round, which mislabelled those two rows.
     mapping = {
-        "A0_Full": "A0_Proposed",
+        "A0_Full": "A2_withPrefLoss",
         "A0_Proposed": "A0_Proposed",
         "A1_NoRoomInput": "A1_NoRoomInput",
-        "A2_NoPrefLoss": "A2_withPrefLoss",
+        "A2_NoPrefLoss": "A0_Proposed",
         "A2_withPrefLoss": "A2_withPrefLoss",
         "E1_NoEQ": "E1_NoEQ",
         "E2_StaticEQ": "E2_StaticEQ",
@@ -1420,21 +1425,15 @@ def load_model(name: str, ckpt_dir: Optional[Path], dry_run: bool) -> nn.Module:
             ckpt_path = path
             break
     if ckpt_path is None:
+        if name in ckpt_io.NO_CHECKPOINT:
+            return model      # analytical baseline, nothing to load
         tried = ", ".join(f"{candidate}.pt" for candidate in checkpoint_name_candidates(name))
-        print(f"  WARNING: No checkpoint for {name} (tried: {tried}), using random weights")
-        return model
+        # This used to warn and carry on with random weights, which produced a
+        # complete set of result files from an untrained model.
+        raise FileNotFoundError(f"no checkpoint for {name} in {ckpt_dir} (tried: {tried})")
 
-    state = torch.load(ckpt_path, map_location="cpu", weights_only=False)
-    if isinstance(state, dict) and "model" in state:
-        state_dict = state["model"]
-    else:
-        state_dict = state
-    missing, unexpected = model.load_state_dict(state_dict, strict=False)
+    ckpt_io.load_into(model, ckpt_path, label=name)
     print(f"  Loaded checkpoint: {ckpt_path}")
-    if missing:
-        print(f"    missing keys: {len(missing)}")
-    if unexpected:
-        print(f"    unexpected keys: {len(unexpected)}")
     return model
 
 
@@ -1461,10 +1460,17 @@ def main():
                         help="논문 본 실험과 분리된 alpha sweep/fig12를 명시적으로 실행")
     args = parser.parse_args()
 
+    # A --dry_run pass evaluates untrained models on synthetic curves. Its
+    # output is written to its own directory and prefixed, so that it can never
+    # be mistaken for, or overwrite, a real result.
     out_dir = Path(args.out_dir)
+    if args.dry_run:
+        out_dir = out_dir.parent / "dry_run_outputs" if out_dir.name != "dry_run_outputs" else out_dir
+        print(f"  [dry_run] synthetic data, untrained models -> {out_dir}")
     fig_dir = out_dir / "figures"; fig_dir.mkdir(parents=True, exist_ok=True)
     tab_dir = out_dir / "tables";  tab_dir.mkdir(parents=True, exist_ok=True)
     stat_dir= out_dir / "stats";   stat_dir.mkdir(parents=True, exist_ok=True)
+    PREFIX = "DRY_RUN_" if args.dry_run else ""
 
     device   = args.device
     ckpt_dir = Path(args.ckpt_dir) if args.ckpt_dir else None
@@ -1485,21 +1491,16 @@ def main():
         data_synth["rt60_arr"] = np.random.uniform(0.2, 0.75, 1000)
         target_freqs = make_frequency_grid_np()
     else:
-        try:
-            ds_synth = PEQDataset(f"{args.data_dir}/test_synth",  device)
-            ds_real  = PEQDataset(f"{args.data_dir}/test_real", device)
-            data_synth = ds_synth.get_all()
-            data_real  = ds_real.get_all()
-            if ds_synth.rt60 is not None:
-                data_synth["rt60_arr"] = ds_synth.rt60
-            target_freqs = ds_synth.target_freqs if ds_synth.target_freqs is not None else make_frequency_grid_np()
-        except FileNotFoundError as e:
-            print(f"  ERROR: {e}")
-            print("  Falling back to dry_run mode")
-            data_synth = make_dry_run_dataset(n=1000, device=device)
-            data_real  = make_dry_run_dataset(n=500,  device=device)
-            data_synth["rt60_arr"] = np.random.uniform(0.2, 0.75, 1000)
-            target_freqs = make_frequency_grid_np()
+        # A missing dataset used to fall back to synthetic data here, which
+        # produced a full set of result files from random curves. Synthetic
+        # data is now only ever used when --dry_run asks for it.
+        ds_synth = PEQDataset(f"{args.data_dir}/test_synth",  device)
+        ds_real  = PEQDataset(f"{args.data_dir}/test_real", device)
+        data_synth = ds_synth.get_all()
+        data_real  = ds_real.get_all()
+        if ds_synth.rt60 is not None:
+            data_synth["rt60_arr"] = ds_synth.rt60
+        target_freqs = ds_synth.target_freqs if ds_synth.target_freqs is not None else make_frequency_grid_np()
 
     # ── 모델 평가 ─────────────────────────────────────────────
     print(f"\n[2/4] Evaluating {len(model_names)} models...")
@@ -1539,28 +1540,28 @@ def main():
             inject_legacy_result_aliases(results_synth)
             inject_legacy_result_aliases(results_real)
 
-            (stat_dir / "alpha_sweep_synth.json").write_text(json.dumps(sweep_synth))
-            (stat_dir / "alpha_sweep_real.json").write_text(json.dumps(sweep_real))
+            (stat_dir / f"{PREFIX}alpha_sweep_synth.json").write_text(json.dumps(sweep_synth))
+            (stat_dir / f"{PREFIX}alpha_sweep_real.json").write_text(json.dumps(sweep_real))
         # raw arrays 저장
-        np.save(stat_dir / f"{name}_lsd.npy",       results_synth[name]["lsd_arr"])
-        np.save(stat_dir / f"{name}_lsd_room.npy",  results_synth[name]["lsd_room_arr"])
-        np.save(stat_dir / f"{name}_lsd_pref.npy",  results_synth[name]["lsd_pref_arr"])
-        np.save(stat_dir / f"{name}_dmr.npy",   results_synth[name]["dmr_arr"])
-        np.save(stat_dir / f"{name}_cossim.npy",    results_synth[name]["cossim_arr"])
-        np.save(stat_dir / f"{name}_real_lsd.npy",       results_real[name]["lsd_arr"])
-        np.save(stat_dir / f"{name}_real_lsd_room.npy",  results_real[name]["lsd_room_arr"])
-        np.save(stat_dir / f"{name}_real_lsd_pref.npy",  results_real[name]["lsd_pref_arr"])
-        np.save(stat_dir / f"{name}_real_dmr.npy",       results_real[name]["dmr_arr"])
-        np.save(stat_dir / f"{name}_real_cossim.npy",    results_real[name]["cossim_arr"])
+        np.save(stat_dir / f"{PREFIX}{name}_lsd.npy",       results_synth[name]["lsd_arr"])
+        np.save(stat_dir / f"{PREFIX}{name}_lsd_room.npy",  results_synth[name]["lsd_room_arr"])
+        np.save(stat_dir / f"{PREFIX}{name}_lsd_pref.npy",  results_synth[name]["lsd_pref_arr"])
+        np.save(stat_dir / f"{PREFIX}{name}_dmr.npy",   results_synth[name]["dmr_arr"])
+        np.save(stat_dir / f"{PREFIX}{name}_cossim.npy",    results_synth[name]["cossim_arr"])
+        np.save(stat_dir / f"{PREFIX}{name}_real_lsd.npy",       results_real[name]["lsd_arr"])
+        np.save(stat_dir / f"{PREFIX}{name}_real_lsd_room.npy",  results_real[name]["lsd_room_arr"])
+        np.save(stat_dir / f"{PREFIX}{name}_real_lsd_pref.npy",  results_real[name]["lsd_pref_arr"])
+        np.save(stat_dir / f"{PREFIX}{name}_real_dmr.npy",       results_real[name]["dmr_arr"])
+        np.save(stat_dir / f"{PREFIX}{name}_real_cossim.npy",    results_real[name]["cossim_arr"])
         # perceptual proxy 분석용 raw pred 저장 (perceptual_proxy.py 에서 사용)
-        np.save(stat_dir / f"{name}_pred.npy",      results_synth[name]["pred_all"])
-        np.save(stat_dir / f"{name}_rtf.npy",       np.array([results_synth[name]["rtf"]]))
+        np.save(stat_dir / f"{PREFIX}{name}_pred.npy",      results_synth[name]["pred_all"])
+        np.save(stat_dir / f"{PREFIX}{name}_rtf.npy",       np.array([results_synth[name]["rtf"]]))
 
     # 타겟 곡선 1회 저장 (perceptual_proxy.py 공유 입력)
     if "A2_withPrefLoss" in results_synth:
-        np.save(stat_dir / "targets_dual.npy",  data_synth["dual_target"].cpu().numpy())
-        np.save(stat_dir / "targets_pref.npy",  data_synth["pref_target"].cpu().numpy())
-        np.save(stat_dir / "targets_room.npy",  data_synth["room_target"].cpu().numpy())
+        np.save(stat_dir / f"{PREFIX}targets_dual.npy",  data_synth["dual_target"].cpu().numpy())
+        np.save(stat_dir / f"{PREFIX}targets_pref.npy",  data_synth["pref_target"].cpu().numpy())
+        np.save(stat_dir / f"{PREFIX}targets_room.npy",  data_synth["room_target"].cpu().numpy())
 
     # ── 표 생성 ───────────────────────────────────────────────
     print("\n[3/4] Generating tables...")
@@ -1596,7 +1597,7 @@ def main():
 
     # REVISION: 보조 fairness 표는 alpha_sweep 선행 산출물 의존 → 없으면 스킵(피규어 차단 방지)
     try:
-        tA1 = build_tableA1(tab_dir / "tableA1_fairness.csv")
+        tA1 = build_tableA1(tab_dir / f"{PREFIX}tableA1_fairness.csv")
         save_table(tA1, tab_dir, "tableA1_fairness",
                    "Table A1: Feature dimension ablation for E3/E4")
     except FileNotFoundError as e:

@@ -1,0 +1,5 @@
+Model/Condition,LSD mean,95% CI
+AC2_GRU dense (raw),0.8600,"[0.8501,0.8698]"
+AC2_GRU 7-pt sampled (Q=1.41),7.7549,"[7.6210,7.9015]"
+Representation penalty,6.8949,"[6.7593,7.0418]"
+A0_Proposed (reference),1.4423,"[1.4228,1.4616]"

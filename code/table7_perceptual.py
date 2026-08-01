@@ -8,13 +8,22 @@ A0/A2 = gain±12 3-seed; A1 = train_full(2.713). A0 기준 = 3-seed, seed pairin
 """
 import numpy as np, torch, csv
 import train_full as TF
-from run_gain_freq_ablation import ORIG_ROOT, HERE, DEFAULT_DATA, cname
+from run_gain_freq_ablation import cname
+import cli_paths
+import ckpt_io
 from dataset_generator_v4_tracklevel import PEQDataset
 from arch_biquad import BIQUAD_REGISTRY
 from perceptual_proxy import lsd_std, lsd_erb_fn, lsd_third_oct, JND_DB
 
+_P, _ = cli_paths.parse("Table 5 (perceptual proxy)", require=("data_dir", "ckpt_dir", "rev_ckpt_dir", "eval_ckpt_dir"))
+DEFAULT_DATA = _P.data_dir      # --data_dir
+FULL = _P.ckpt_dir              # --ckpt_dir       pre-revision checkpoints
+SAVE = _P.rev_ckpt_dir          # --rev_ckpt_dir   +/-12 dB revision checkpoints
+CKE = _P.eval_ckpt_dir          # --eval_ckpt_dir  evaluation staging
+OUT = _P.out_dir                # --out_dir        created if missing
+
 device = torch.device("cpu" if not torch.cuda.is_available() else "cuda")
-FULL=ORIG_ROOT/"checkpoints"/"full"; CKE=HERE/"ckpt_eval"; SAVE=HERE/"checkpoints"; SEEDS=[42,123,7]
+SEEDS = [42, 123, 7]
 reg = TF.build_registry()
 ds = PEQDataset(f"{DEFAULT_DATA}/test_synth", device=str(device))
 dual = torch.cat([b["dual_target"] for b in ds.iter_batches(10**9, False)]).cpu().numpy()
@@ -22,17 +31,15 @@ dual = torch.cat([b["dual_target"] for b in ds.iter_batches(10**9, False)]).cpu(
 @torch.no_grad()
 def pred_std(name, ckpt):
     m = reg[name]["model"]; TF._REGISTRY_TARGET[name]=reg[name]["target"]
-    if ckpt is not None:
-        ck=torch.load(ckpt,map_location=device,weights_only=False)
-        m.load_state_dict(ck["model"] if isinstance(ck,dict) and "model" in ck else ck, strict=False)
+    # E1/E2/E6 are analytical and carry no checkpoint; anything else must load.
+    ckpt_io.load_into(m, ckpt, map_location=device, label=name)
     m.to(device).eval()
     return np.concatenate([TF.model_forward(name,m,b)["pred_response_db"].cpu().numpy() for b in ds.iter_batches(512,False)])
 
 @torch.no_grad()
 def pred_biquad(name, ckpt):
     m = BIQUAD_REGISTRY[name](gain_max=12.0).to(device).eval()
-    ck=torch.load(ckpt,map_location=device,weights_only=False)
-    m.load_state_dict(ck["model"] if isinstance(ck,dict) and "model" in ck else ck, strict=False)
+    ckpt_io.load_into(m, ckpt, map_location=device, label=name)
     out=[]
     for b in ds.iter_batches(512,False):
         out.append(m(b["features"],b["room_response"],b["mode_id"],b["band_gains"])["pred_response_db"].cpu().numpy())
@@ -98,7 +105,7 @@ print(h); print("-"*len(h))
 for r in rows:
     print(f"{r[0]:20}{r[1]:>8.3f}{r[2]:>9.3f}{r[3]:>9.3f}{r[4]:>9.3f}{r[5]:>8.1f}")
 
-with open(HERE/"results"/"table7_perceptual.csv","w",newline="",encoding="utf-8-sig") as f:
+with open(OUT / "table7_perceptual.csv","w",newline="",encoding="utf-8-sig") as f:
     w=csv.writer(f); w.writerow(["Model","LSD","ERB_LSD","third_oct_LSD","abs_delta_vs_A0","pct_below_JND"])
     for r in rows: w.writerow([r[0]]+[f"{x:.4f}" for x in r[1:]])
-print(f"\n저장: {HERE/'results'/'table7_perceptual.csv'}")
+print(f"\n저장: {OUT / 'table7_perceptual.csv'}")

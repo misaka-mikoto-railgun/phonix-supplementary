@@ -1,9 +1,26 @@
-numpy
-scipy
-pandas
-matplotlib
-torch
-librosa
-soundfile
-pyroomacoustics
-tqdm
+# Versions verified by regenerating every table and figure in this repository
+# from the checkpoints; see README, "Environment". Pinned rather than
+# lower-bounded, because an untested combination is worse than none at all.
+#
+#   Python 3.13.5 on Windows 11 (10.0.26200), CUDA 12.8, NVIDIA RTX 3060 Ti
+#
+# torch is listed without the +cu128 local version so that this file installs on
+# CPU-only machines as well; every script falls back to CPU. To reproduce the
+# CUDA build exactly:
+#   pip install torch==2.7.1 --index-url https://download.pytorch.org/whl/cu128
+
+numpy==1.26.4
+scipy==1.16.0
+pandas==2.3.0
+matplotlib==3.10.3
+torch==2.7.1
+
+# Dataset generation only (code/dataset_generator_v4_tracklevel.py)
+librosa==0.11.0
+soundfile==0.13.1
+pyroomacoustics==0.9.0
+tqdm==4.67.1
+
+# Embedded export and INT8 evaluation only (embedded/onnx/)
+onnx==1.18.0
+onnxruntime==1.22.1

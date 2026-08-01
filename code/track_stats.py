@@ -15,13 +15,20 @@ import numpy as np
 import torch
 
 import train_full as TF
-from run_gain_freq_ablation import ORIG_ROOT, HERE, DEFAULT_DATA, cname
+from run_gain_freq_ablation import cname
+import cli_paths
+import ckpt_io
 from track_level_eval import compare_two_prediction_sets
 from export_track_level_predictions import TrackAwarePEQDataset
 
+_P, _ = cli_paths.parse("track-level statistics, 3-seed", require=("data_dir", "ckpt_dir", "rev_ckpt_dir"))
+DEFAULT_DATA = _P.data_dir      # --data_dir
+FULL = _P.ckpt_dir              # --ckpt_dir       pre-revision checkpoints
+SAVE = _P.rev_ckpt_dir          # --rev_ckpt_dir   +/-12 dB revision checkpoints
+CKE = _P.eval_ckpt_dir          # --eval_ckpt_dir  evaluation staging
+OUT = _P.out_dir                # --out_dir        created if missing
+
 device = torch.device("cpu" if not torch.cuda.is_available() else "cuda")
-FULL = ORIG_ROOT / "checkpoints" / "full"
-SAVE = HERE / "checkpoints"
 SEEDS = [42, 123, 7]
 N_BOOT = 1000
 
@@ -48,24 +55,19 @@ pref_t  = ds.data["pref_target"].cpu().numpy()
 room_t  = ds.data["room_target"].cpu().numpy()
 print(f"n_groups (unique track_id) = {len(np.unique(track_id))}")
 
-
 @torch.no_grad()
 def predict(name, model_key, ckpt):
     model = registry[model_key]["model"]
-    ck = torch.load(ckpt, map_location=device, weights_only=False)
-    state = ck["model"] if isinstance(ck, dict) and "model" in ck else ck
-    model.load_state_dict(state, strict=False)
+    ckpt_io.load_into(model, ckpt, map_location=device, label=model_key)
     model.to(device).eval()
     preds = []
     for batch in ds.iter_batches(512, shuffle=False):
         preds.append(TF.model_forward(name, model, batch)["pred_response_db"].cpu().numpy())
     return np.concatenate(preds)
 
-
 def payload(pred):
     return {"pred": pred, "target": target, "pref_target": pref_t,
             "room_target": room_t, "track_id": track_id}
-
 
 # 비교대상 single-seed 예측 ────────────────────────────────────────────────────
 base_pl = {n: payload(predict(n, n, FULL / f)) for n, f in COMPARATORS}
@@ -102,6 +104,6 @@ for tgt in targets:
           f"{dd[0]:>+9.3f}±{dd[1]:<8.3f} {dz[0]:>+8.2f} {ng:>6}")
     summary[tgt] = dict(n_groups=ng, lsd_delta=ld, lsd_dz=lz, dmr_delta=dd, dmr_dz=dz)
 
-out = HERE / "results" / "track_stats_3seed_test_synth.json"
+out = OUT / "track_stats_3seed_test_synth.json"
 out.write_text(json.dumps(summary, indent=2), encoding="utf-8")
 print(f"\n저장: {out}")

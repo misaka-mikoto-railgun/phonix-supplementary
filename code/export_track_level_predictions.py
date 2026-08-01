@@ -6,7 +6,7 @@ Export per-sample prediction dumps for track-level evaluation.
 This script follows the model/checkpoint path used in `train_full.py` and the
 evaluation flow used in `experiments_fixed_updated.py`, then saves `.npz`
 payloads compatible with `track_level_eval.py`. It can also run the A0-vs-model
-track-level paired tests needed for reviewer-facing ablation/baseline checks.
+track-level paired tests behind the ablation and baseline comparisons.
 
 Required output keys:
     pred      : [N, F]
@@ -33,7 +33,7 @@ from model_aliases import canonical_model_name, checkpoint_name_candidates
 from train_full import build_registry
 
 
-DEFAULT_REVIEWER_MODELS = [
+DEFAULT_COMPARISON_MODELS = [
     "A0_Proposed",
     "A1_NoRoomInput",
     "A2_withPrefLoss",
@@ -42,7 +42,7 @@ DEFAULT_REVIEWER_MODELS = [
     "E4_Pepe",
 ]
 
-DEFAULT_REVIEWER_CANDIDATES = [
+DEFAULT_COMPARISON_CANDIDATES = [
     "A1_NoRoomInput",
     "A2_withPrefLoss",
     "A3_NoPrefInput",
@@ -152,8 +152,8 @@ def _canonical_model_name(name: str) -> str:
 
 
 def parse_model_names(arg: str, registry: Dict[str, dict], default: List[str] | None = None) -> List[str]:
-    if arg == "reviewer":
-        names = list(default or DEFAULT_REVIEWER_MODELS)
+    if arg == "default":
+        names = list(default or DEFAULT_COMPARISON_MODELS)
     elif arg == "all":
         return list(registry.keys())
     else:
@@ -415,8 +415,8 @@ def main() -> None:
     parser.add_argument("--out_dir", default="./eval_reports/track_level_npz", help="Output directory")
     parser.add_argument(
         "--models",
-        default="reviewer",
-        help="Comma-separated model names, short names (A0,A1,A2,A3,E3,E4), 'reviewer', or 'all'",
+        default="default",
+        help="Comma-separated model names, short names (A0,A1,A2,A3,E3,E4), 'default', or 'all'",
     )
     parser.add_argument("--baseline", default="A0", help="Baseline model for paired stats")
     parser.add_argument("--baseline-seed", default=None,
@@ -444,7 +444,7 @@ def main() -> None:
 
     dataset = TrackAwarePEQDataset(split_dir=split_dir, device=str(device))
     registry = build_export_registry()
-    model_names = parse_model_names(args.models, registry, default=DEFAULT_REVIEWER_MODELS)
+    model_names = parse_model_names(args.models, registry, default=DEFAULT_COMPARISON_MODELS)
     baseline_name = _canonical_model_name(args.baseline)
     candidate_names = [] if args.candidates == "none" else parse_model_names(args.candidates, registry)
 

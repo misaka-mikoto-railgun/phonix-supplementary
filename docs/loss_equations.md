@@ -97,5 +97,9 @@ $$
 | grid | 128 bins, log, 20–24000 Hz | model.py:230–233 (default) |
 | `use_perceptual` | True (A0) | train_full:136 |
 
-## 5. rebuttal 문구
-"The principal magnitude term and its per-bin weight $W_k$ are now defined explicitly in §2; the full A-weighting and the shape/gradient/curvature sub-terms are specified in the released training code (`model.py`, `DualObjectiveEQLoss`). The loss is unchanged from the original submission — only the per-section gain bound was relaxed (±6→±12 dB)."
+## 5. 요약
+
+주 magnitude 항과 per-bin 가중치 $W_k$ 는 §2 에 명시했고, A-weighting 과
+shape/gradient/curvature 하위 항은 `model.py` 의 `DualObjectiveEQLoss` 에 있다.
+±6 → ±12 dB 로 완화한 것은 Stage-B 의 per-section gain bound 뿐이며,
+손실 함수 자체는 그대로다.

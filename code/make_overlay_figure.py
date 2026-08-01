@@ -7,6 +7,7 @@ H_hat (blue, drawn on top). A ±0.5 dB JND band is shaded around T_pref.
 Log frequency axis (20 Hz – 20 kHz), 0 dB guide line, LSD box, Okabe-Ito
 palette. Guard: H_hat == R_hat - T_room.
 """
+import argparse
 import json
 from pathlib import Path
 import numpy as np
@@ -19,7 +20,16 @@ SHOW_BANDS = False     # 7밴드 underlay (clutter 방지 기본 off)
 SPAN_2COL  = False     # True=양단(7in), False=단일(3.5in)
 
 HERE = Path(__file__).resolve().parent
-J = json.load(open(HERE/"results"/"fig_overlay_sample.json", encoding="utf-8"))
+_ap = argparse.ArgumentParser(description="frequency-response overlay figure")
+_ap.add_argument("--results_dir", default=str(HERE / "results"),
+                 help="directory holding fig_overlay_sample.json")
+_ap.add_argument("--out_dir", default=None,
+                 help="destination for figures/ (default: <results_dir>/paper_outputs)")
+_a = _ap.parse_args()
+RES = Path(_a.results_dir)
+FIGOUT = Path(_a.out_dir) if _a.out_dir else RES / "paper_outputs"
+
+J = json.load(open(RES / "fig_overlay_sample.json", encoding="utf-8"))
 f  = np.array(J["freqs_Hz"]); Tr = np.array(J["T_room"]); Tp = np.array(J["T_pref"])
 R  = np.array(J["R_hat"]);    H  = np.array(J["H_hat"]);  m = J["meta"]
 Hroom = -Tr
@@ -67,7 +77,7 @@ ax.text(0.025, 0.04,
 ax.legend(loc="upper right", framealpha=0.92, ncol=1, handlelength=1.7,
           borderpad=0.35, labelspacing=0.3)
 
-out = HERE/"results"/"paper_outputs"/"figures"/"fig_response_overlay"
+out = FIGOUT / "figures" / "fig_response_overlay"
 out.parent.mkdir(parents=True, exist_ok=True)
 for ext in ("pdf","png"):
     fig.savefig(f"{out}.{ext}", dpi=300)

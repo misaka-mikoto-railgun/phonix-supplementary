@@ -26,7 +26,8 @@ file is therefore expected and does not indicate an absence of measurement.
 | core clock | 168 MHz (SYSCLK), ART prefetch + I/D cache ON, FPU on | `[file: ../cmsis_mfcc/README_MFCC_BENCH.md]` |
 | probe | ST-Link V2 clone (no VCP) | `[session record]` |
 | power | USB-C | `[session record]` |
-| flash / SRAM | 1024 KiB / 128 KiB (F405RG) | `[session record]` |
+| flash / SRAM | 1024 KiB / 192 KB (F405RG) | `[datasheet]` |
+| SRAM composition | 112 KB SRAM1 + 16 KB SRAM2 (128 KB contiguous, DMA-accessible) + 64 KB CCM (D-bus, no DMA) + 4 KB backup | `[datasheet]` |
 
 ## Toolchain
 
@@ -73,10 +74,19 @@ per-variant cycle counts other than A0; those rows are marked
 |---|---|---|---|
 | A0_Proposed | 288.3 ms | slower than FP32 on this MCU | `[session record]` |
 | AC2_GRU_Biquad | 389.6 ms | | `[session record]` |
-| AC3_Conformer_Biquad | N/A | activation SRAM ≈ 78 KB exceeded | `[session record]` |
+| AC3_Conformer_Biquad | N/A | activation buffer over budget by ≈ 78 KB | `[session record]` |
 
 INT8 accuracy impact is in `[file: ../onnx/INT8_EVAL.md]` (that file contains accuracy
 only — no size or latency figures).
+
+The ≈ 78 KB overrun for AC3 is a session record: the linker `.map` and the
+CubeIDE project are not part of this repository, so neither the region the
+activation buffer was placed in nor the exact shortfall can be re-derived here.
+For scale, the ST Edge AI `analyze` step reports 96.94 KiB RAM(total) for the
+FP32 graph `[file: ../build_reports/ST_VALIDATION.md]`; that figure covers the
+analysed graph only, not the built application, and is not the number the
+overrun was measured against. The other rows in this file are cycle-counter
+measurements and do not depend on it.
 
 ## Feature front-end (CMSIS-DSP MFCC)
 

@@ -44,6 +44,8 @@ from pathlib import Path
 import numpy as np
 import torch
 
+import ckpt_io
+
 import train_full as TF
 from model import DualObjectiveAdaptivePEQ, DualObjectiveEQLoss
 from dataset_generator_v4_tracklevel import PEQDataset
@@ -186,10 +188,14 @@ def evaluate(name, cfg, model, ds_test, device, batch_size=512) -> dict:
 
 
 def _mean_std(vals):
+    """seed 집계. 표준편차는 표본 표준편차(ddof=1)로 통일한다 — 논문에 인쇄되는
+    ± 는 전부 이 정의이고, seed 3개 표본에서 numpy 기본값 ddof=0 은 산포를
+    약 18 % 작게 보고한다. seed 가 하나면 산포가 정의되지 않으므로 0 으로 둔다."""
     vals = [v for v in vals if v is not None]
     if not vals:
         return (float("nan"), float("nan"), 0)
-    return (float(np.mean(vals)), float(np.std(vals)), len(vals))
+    sd = float(np.std(vals, ddof=1)) if len(vals) > 1 else 0.0
+    return (float(np.mean(vals)), sd, len(vals))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -248,6 +254,8 @@ def main():
     ap.add_argument("--eval_only",  action="store_true")
     ap.add_argument("--dry_check",  action="store_true", help="셋업 검증만 수행")
     ap.add_argument("--no_cuda",    action="store_true")
+    ap.add_argument("--allow_missing_ckpt", action="store_true",
+                    help="evaluate only the (config, seed) cells whose checkpoint exists")
     args = ap.parse_args()
 
     device = torch.device("cpu" if args.no_cuda or not torch.cuda.is_available() else "cuda")
@@ -314,12 +322,16 @@ def main():
             else:
                 ckpt_path = save_dir / f"{name}.pt"
             if not Path(ckpt_path).exists():
+                # Skipping silently would leave the seed aggregate short without
+                # anything downstream noticing, so it has to be asked for.
+                if not args.allow_missing_ckpt:
+                    raise FileNotFoundError(
+                        f"checkpoint not found for config={c} seed={seed}: {ckpt_path}"
+                        "  (pass --allow_missing_ckpt to evaluate the cells that do exist)")
                 print(f"  [{c} seed={seed}] 체크포인트 없음 — 스킵 ({ckpt_path})")
                 continue
             model = build_model(c)
-            ck = torch.load(ckpt_path, map_location=device, weights_only=False)
-            state = ck["model"] if isinstance(ck, dict) and "model" in ck else ck
-            model.load_state_dict(state, strict=False)
+            ckpt_io.load_into(model, ckpt_path, map_location=device, label=f"{c} s{seed}")
             r = evaluate(name, c, model, ds_test, device, args.batch_size)
             per_seed[c][seed] = r
             print(f"  [{c:>9} s{seed:>3}] LSD={r['lsd_mean']:.4f} DMR={r['dmr_mean']:.4f} "
@@ -350,6 +362,9 @@ def main():
         summary[c] = dict(
             gain_max=CONFIGS[c]["gain_max"], fc_max=CONFIGS[c]["fc_max"],
             seeds=seeds, n=n,
+            # seed 별 LSD 를 그대로 남긴다. 평균과 표준편차만 있으면 seed 간
+            # 산포를 그림으로 보일 수 없고, 그 값이 다시 코드에 박히게 된다.
+            lsd_per_seed=[per_seed[c][s]["lsd_mean"] for s in seeds],
             lsd=(lsd_m, lsd_s), dmr=dmr_m, cossim=cos_m,
             gain_sat_self=gsat_m, gain_over6=g6_m,
             fc_hi_self=fsat_m, fc_over16k=f16_m,

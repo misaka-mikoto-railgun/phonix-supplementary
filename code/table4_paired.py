@@ -15,12 +15,20 @@ import torch
 from scipy import stats
 
 import train_full as TF
-from run_gain_freq_ablation import ORIG_ROOT, HERE, DEFAULT_DATA, cname
+from run_gain_freq_ablation import cname
+import cli_paths
+import ckpt_io
 from track_level_eval import compare_two_prediction_sets
 from export_track_level_predictions import TrackAwarePEQDataset
 
+_P, _ = cli_paths.parse("Table 2 paired statistics", require=("data_dir", "ckpt_dir", "rev_ckpt_dir", "eval_ckpt_dir"))
+DEFAULT_DATA = _P.data_dir      # --data_dir
+FULL = _P.ckpt_dir              # --ckpt_dir       pre-revision checkpoints
+SAVE = _P.rev_ckpt_dir          # --rev_ckpt_dir   +/-12 dB revision checkpoints
+CKE = _P.eval_ckpt_dir          # --eval_ckpt_dir  evaluation staging
+OUT = _P.out_dir                # --out_dir        created if missing
+
 device = torch.device("cpu" if not torch.cuda.is_available() else "cuda")
-FULL = ORIG_ROOT/"checkpoints"/"full"; CKE = HERE/"ckpt_eval"; SAVE = HERE/"checkpoints"
 SEEDS = [42, 123, 7]
 reg = TF.build_registry()
 ds = TrackAwarePEQDataset(f"{DEFAULT_DATA}/test_synth", device=str(device))
@@ -33,9 +41,8 @@ def dmr(h,q): return np.mean((np.sign(h)==np.sign(q)).astype(float), -1)
 @torch.no_grad()
 def predict(name, ckpt):
     m = reg[name]["model"]; TF._REGISTRY_TARGET[name] = reg[name]["target"]
-    if ckpt is not None:
-        ck = torch.load(ckpt, map_location=device, weights_only=False)
-        m.load_state_dict(ck["model"] if isinstance(ck,dict) and "model" in ck else ck, strict=False)
+    # E1/E2/E6 are analytical and carry no checkpoint; anything else must load.
+    ckpt_io.load_into(m, ckpt, map_location=device, label=name)
     m.to(device).eval()
     return np.concatenate([TF.model_forward(name, m, b)["pred_response_db"].cpu().numpy()
                            for b in ds.iter_batches(512, False)])
@@ -118,12 +125,12 @@ for r in rows:
 
 # CSV
 import csv
-with open(HERE/"results"/"table4_paired_synth.csv","w",newline="",encoding="utf-8-sig") as f:
+with open(OUT / "table4_paired_synth.csv","w",newline="",encoding="utf-8-sig") as f:
     w=csv.writer(f); w.writerow(["A0_vs","level","metric","delta_mean","delta_std","d_z","d_z_std","win_pct","wilcoxon_p","N"])
     for r in rows:
         w.writerow([r["tgt"],"sample","LSD",f"{r['s_lsd_d'][0]:.4f}",f"{r['s_lsd_d'][1]:.4f}",f"{r['s_lsd_dz'][0]:.3f}",f"{r['s_lsd_dz'][1]:.3f}",f"{r['s_lsd_win'][0]*100:.1f}",f"{r['s_lsd_p']:.2e}",3000])
         w.writerow([r["tgt"],"sample","DMR",f"{r['s_dmr_d'][0]:.4f}",f"{r['s_dmr_d'][1]:.4f}",f"{r['s_dmr_dz'][0]:.3f}",f"{r['s_dmr_dz'][1]:.3f}",f"{r['s_dmr_win'][0]*100:.1f}","",3000])
         w.writerow([r["tgt"],"track","LSD",f"{r['t_lsd_d'][0]:.4f}",f"{r['t_lsd_d'][1]:.4f}",f"{r['t_lsd_dz'][0]:.3f}",f"{r['t_lsd_dz'][1]:.3f}",f"{r['t_lsd_win'][0]*100:.1f}","",r["ng"]])
         w.writerow([r["tgt"],"track","DMR",f"{r['t_dmr_d'][0]:.4f}",f"{r['t_dmr_d'][1]:.4f}",f"{r['t_dmr_dz'][0]:.3f}",f"{r['t_dmr_dz'][1]:.3f}","","",r["ng"]])
-print(f"\n저장: {HERE/'results'/'table4_paired_synth.csv'}")
+print(f"\n저장: {OUT / 'table4_paired_synth.csv'}")
 print("주의: A0 vs A2 sample-level은 ‡(p<0.001)이나 effect 미미(d_z≈-0.19, Win 58%) + seed-level n.s.(§4.2). 본문 병기 필수.")

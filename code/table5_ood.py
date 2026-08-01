@@ -12,12 +12,20 @@ import numpy as np
 import torch
 
 import train_full as TF
-from run_gain_freq_ablation import ORIG_ROOT, HERE, DEFAULT_DATA, cname
+from run_gain_freq_ablation import cname
+import cli_paths
+import ckpt_io
 from dataset_generator_v4_tracklevel import PEQDataset
 from export_track_level_predictions import TrackAwarePEQDataset
 
+_P, _ = cli_paths.parse("Table 3 (out-of-distribution)", require=("data_dir", "ckpt_dir", "rev_ckpt_dir", "eval_ckpt_dir"))
+DEFAULT_DATA = _P.data_dir      # --data_dir
+FULL = _P.ckpt_dir              # --ckpt_dir       pre-revision checkpoints
+SAVE = _P.rev_ckpt_dir          # --rev_ckpt_dir   +/-12 dB revision checkpoints
+CKE = _P.eval_ckpt_dir          # --eval_ckpt_dir  evaluation staging
+OUT = _P.out_dir                # --out_dir        created if missing
+
 device = torch.device("cpu" if not torch.cuda.is_available() else "cuda")
-FULL = ORIG_ROOT/"checkpoints"/"full"; CKE = HERE/"ckpt_eval"; SAVE = HERE/"checkpoints"
 SEEDS = [42, 123, 7]
 reg = TF.build_registry()
 
@@ -44,9 +52,8 @@ def dmr(h, q): return np.mean((np.sign(h) == np.sign(q)).astype(float), -1)
 @torch.no_grad()
 def predict(name, ckpt, dataobj):
     m = reg[name]["model"]; TF._REGISTRY_TARGET[name] = reg[name]["target"]
-    if ckpt is not None:
-        ck = torch.load(ckpt, map_location=device, weights_only=False)
-        m.load_state_dict(ck["model"] if isinstance(ck,dict) and "model" in ck else ck, strict=False)
+    # E1/E2/E6 are analytical and carry no checkpoint; anything else must load.
+    ckpt_io.load_into(m, ckpt, map_location=device, label=name)
     m.to(device).eval()
     return np.concatenate([TF.model_forward(name, m, b)["pred_response_db"].cpu().numpy()
                            for b in dataobj.iter_batches(512, False)])
@@ -107,9 +114,9 @@ print(f"A0 gap 가장 작은가? {'아니오 — AC 범위 안' if inside else (
       f"(0.697 vs AC {min(ac_gaps):.3f}~{max(ac_gaps):.3f})")
 
 import csv
-with open(HERE/"results"/"table5_ood.csv","w",newline="",encoding="utf-8-sig") as f:
+with open(OUT / "table5_ood.csv","w",newline="",encoding="utf-8-sig") as f:
     w=csv.DictWriter(f, fieldnames=["model","synth","synth_sd","real","real_sd","rdmr","gap","but","oa"])
     w.writeheader()
     for r in rows: w.writerow({k:(f"{v:.4f}" if isinstance(v,float) else v) for k,v in r.items()})
-print(f"\n저장: {HERE/'results'/'table5_ood.csv'}")
+print(f"\n저장: {OUT / 'table5_ood.csv'}")
 print("출처: predictions=this revision eval(test_synth/test_real); source-split=test_real/rir_map.json(room_id)")

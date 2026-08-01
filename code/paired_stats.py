@@ -20,12 +20,19 @@ import numpy as np
 import torch
 
 import train_full as TF
-from run_gain_freq_ablation import DEFAULT_DATA, ORIG_ROOT, HERE, evaluate, cname
+from run_gain_freq_ablation import evaluate, cname
+import cli_paths
+import ckpt_io
 from dataset_generator_v4_tracklevel import PEQDataset
 
+_P, _ = cli_paths.parse("paired statistics, 3-seed", require=("data_dir", "ckpt_dir", "rev_ckpt_dir"))
+DEFAULT_DATA = _P.data_dir      # --data_dir
+FULL = _P.ckpt_dir              # --ckpt_dir       pre-revision checkpoints
+SAVE = _P.rev_ckpt_dir          # --rev_ckpt_dir   +/-12 dB revision checkpoints
+CKE = _P.eval_ckpt_dir          # --eval_ckpt_dir  evaluation staging
+OUT = _P.out_dir                # --out_dir        created if missing
+
 device = torch.device("cpu" if not torch.cuda.is_available() else "cuda")
-FULL = ORIG_ROOT / "checkpoints" / "full"
-SAVE = HERE / "checkpoints"
 SEEDS = [42, 123, 7]
 
 # 비교대상: (canonical name, checkpoint file in checkpoints/full)  — single-seed(42)
@@ -47,18 +54,14 @@ TF._REGISTRY_TARGET["A2_withPrefLoss"] = "dual"
 
 ds = PEQDataset(f"{DEFAULT_DATA}/test_synth", device=str(device))
 
-
 def per_sample(name, model_key, ckpt_path):
     """ckpt 로드 후 per-sample lsd_arr/dmr_arr 반환 (evaluate 재사용, 동일 샘플순서)."""
     model = registry[model_key]["model"] if model_key in registry else None
     if model is None:
         raise KeyError(model_key)
-    ck = torch.load(ckpt_path, map_location=device, weights_only=False)
-    state = ck["model"] if isinstance(ck, dict) and "model" in ck else ck
-    model.load_state_dict(state, strict=False)
+    ckpt_io.load_into(model, ckpt_path, map_location=device, label=model_key)
     r = evaluate(name, None, model, ds, device)
     return r["lsd_arr"], r["dmr_arr"]
-
 
 def paired(a0_arr, base_arr, metric):
     """metric: 'lsd'(낮을수록 좋음) | 'dmr'(높을수록 좋음)."""
@@ -70,7 +73,6 @@ def paired(a0_arr, base_arr, metric):
     else:
         win = float(np.mean(a0_arr > base_arr))
     return d_mean, d_z, win
-
 
 # 비교대상 per-sample (single-seed, seed 무관하게 1회) ─────────────────────────
 base_cache = {}
@@ -97,11 +99,9 @@ for tgt in targets:
         agg[tgt]["lsd"].append(paired(a0_lsd, b_lsd, "lsd"))
         agg[tgt]["dmr"].append(paired(a0_dmr, b_dmr, "dmr"))
 
-
 def ms(rows, i):
     v = np.array([r[i] for r in rows])
     return float(v.mean()), float(v.std(ddof=1))
-
 
 # 원본 tab:stats 값 (jaes_optimized.tex) — 비교용
 ORIG = {
@@ -135,6 +135,6 @@ for tgt in targets:
               f"{wm*100:>7.1f}±{ws*100:<8.1f}   {ostr:>22}")
         summary[tgt][metric] = dict(delta=(dm, ds_), d_z=(zm, zs), win=(wm, ws), orig=o)
 
-out = HERE / "results" / "paired_stats_3seed_test_synth.json"
+out = OUT / "paired_stats_3seed_test_synth.json"
 out.write_text(json.dumps(summary, indent=2), encoding="utf-8")
 print(f"\n저장: {out}")

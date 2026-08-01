@@ -1,0 +1,281 @@
+{
+  "source_commit": "8466ab2daafee9fb488cc8b40dbd125de70c6ee1",
+  "note": "gain_max / fc_max are not stored inside a .pt file. Instantiate the model with the values given here; a mismatched bound loads without error and then clamps the output.",
+  "evaluation_staging": {
+    "A0_Proposed": "checkpoints_revision/A0_g12_f16k_s7.pt",
+    "A2_withPrefLoss": "checkpoints_revision/A2_g12_f16k_s7.pt"
+  },
+  "evaluation_staging_note": "Model names not listed above are evaluated from checkpoints_original/<name>.pt.",
+  "checkpoints": [
+    {
+      "file": "checkpoints_revision/A0_g12_f16k_s123.pt",
+      "model": "A0_Proposed",
+      "checkpoint_stem": "A0_g12_f16k_s123",
+      "train_seed": 123,
+      "gain_max": 12.0,
+      "fc_max": 16000.0,
+      "bytes": 2543758,
+      "sha256": "0a359d6c58941f93b261f2adbf693a2f26c6a083d23c56b97242b9efb4445f3d"
+    },
+    {
+      "file": "checkpoints_revision/A0_g12_f16k_s42.pt",
+      "model": "A0_Proposed",
+      "checkpoint_stem": "A0_g12_f16k_s42",
+      "train_seed": 42,
+      "gain_max": 12.0,
+      "fc_max": 16000.0,
+      "bytes": 2560361,
+      "sha256": "f2a9e55af8de62f0e3f57bb7204792542a623d6640fbcac17c6b31d3efcc2bc6"
+    },
+    {
+      "file": "checkpoints_revision/A0_g12_f16k_s7.pt",
+      "model": "A0_Proposed",
+      "checkpoint_stem": "A0_g12_f16k_s7",
+      "train_seed": 7,
+      "gain_max": 12.0,
+      "fc_max": 16000.0,
+      "bytes": 2552260,
+      "sha256": "b80e9231541e370f9f25c88c25ff15396b7dfe88e0699e6f564faa41925d8790"
+    },
+    {
+      "file": "checkpoints_revision/A0_g12_f20k_s123.pt",
+      "model": "A0_Proposed",
+      "checkpoint_stem": "A0_g12_f20k_s123",
+      "train_seed": 123,
+      "gain_max": 12.0,
+      "fc_max": 20000.0,
+      "bytes": 2553550,
+      "sha256": "8d464bd1e90565d4875c99575f54de88c65597f1b546cd7e69b9919be92df6b0"
+    },
+    {
+      "file": "checkpoints_revision/A0_g12_f20k_s42.pt",
+      "model": "A0_Proposed",
+      "checkpoint_stem": "A0_g12_f20k_s42",
+      "train_seed": 42,
+      "gain_max": 12.0,
+      "fc_max": 20000.0,
+      "bytes": 2557609,
+      "sha256": "dfbbec1e1e226015231e078649e29b43d4cb87caa2bf1c46b075982aaff76ad4"
+    },
+    {
+      "file": "checkpoints_revision/A0_g12_f20k_s7.pt",
+      "model": "A0_Proposed",
+      "checkpoint_stem": "A0_g12_f20k_s7",
+      "train_seed": 7,
+      "gain_max": 12.0,
+      "fc_max": 20000.0,
+      "bytes": 2563204,
+      "sha256": "6c09897d6dafd0765a63f7fab88b0a4f60bbde103ad746d783a7cfd4d7e68342"
+    },
+    {
+      "file": "checkpoints_revision/A2_g12_f16k_s123.pt",
+      "model": "A2_withPrefLoss",
+      "checkpoint_stem": "A2_g12_f16k_s123",
+      "train_seed": 123,
+      "gain_max": 12.0,
+      "fc_max": 16000.0,
+      "bytes": 2543758,
+      "sha256": "5151afd5d0eed2e89306a2c44eff398bab4ddbf4d5ca74f3867023f0b0ce915d"
+    },
+    {
+      "file": "checkpoints_revision/A2_g12_f16k_s42.pt",
+      "model": "A2_withPrefLoss",
+      "checkpoint_stem": "A2_g12_f16k_s42",
+      "train_seed": 42,
+      "gain_max": 12.0,
+      "fc_max": 16000.0,
+      "bytes": 2555753,
+      "sha256": "e82fd47f49e69c8336187f9c99e0881f44cf11d1ac3cf422ffabfbec3086f1bc"
+    },
+    {
+      "file": "checkpoints_revision/A2_g12_f16k_s7.pt",
+      "model": "A2_withPrefLoss",
+      "checkpoint_stem": "A2_g12_f16k_s7",
+      "train_seed": 7,
+      "gain_max": 12.0,
+      "fc_max": 16000.0,
+      "bytes": 2548868,
+      "sha256": "d226bef140c1ebe3eed85d65a86fe433a0c6c1fce79eab9160494980f8c68365"
+    },
+    {
+      "file": "checkpoints_revision/AC1_BiLSTM_Biquad_g12.pt",
+      "model": "AC1_BiLSTM_Biquad",
+      "checkpoint_stem": "AC1_BiLSTM_Biquad_g12",
+      "train_seed": 42,
+      "gain_max": 12.0,
+      "fc_max": 16000.0,
+      "bytes": 992474,
+      "sha256": "7f5717531733f25fceff2dfa90dc8031e0982b5c98080a669fc4a1681d5c3db9"
+    },
+    {
+      "file": "checkpoints_revision/AC2_GRU_Biquad_g12.pt",
+      "model": "AC2_GRU_Biquad",
+      "checkpoint_stem": "AC2_GRU_Biquad_g12",
+      "train_seed": 42,
+      "gain_max": 12.0,
+      "fc_max": 16000.0,
+      "bytes": 1091501,
+      "sha256": "ab10b502b98c0c715102f8eb0d25e28c49b2653278c491a8359d958b11015d3e"
+    },
+    {
+      "file": "checkpoints_revision/AC3_Conformer_Biquad_g12.pt",
+      "model": "AC3_Conformer_Biquad",
+      "checkpoint_stem": "AC3_Conformer_Biquad_g12",
+      "train_seed": 42,
+      "gain_max": 12.0,
+      "fc_max": 16000.0,
+      "bytes": 1703129,
+      "sha256": "e920fd69cbb63ec9dfcbc6562a7f95816f1ca5a9fae1238cb8da28b84a3e9984"
+    },
+    {
+      "file": "checkpoints_original/A0_Full.pt",
+      "model": "A0_Full",
+      "checkpoint_stem": "A0_Full",
+      "train_seed": 42,
+      "gain_max": null,
+      "fc_max": null,
+      "bytes": 2573889,
+      "sha256": "423229f8fef260058927bd35a1d30090290cdc3ac602ade45c76027ae1274268"
+    },
+    {
+      "file": "checkpoints_original/A0_Proposed.pt",
+      "model": "A0_Proposed",
+      "checkpoint_stem": "A0_Proposed",
+      "train_seed": 42,
+      "gain_max": 6.0,
+      "fc_max": 16000.0,
+      "bytes": 2561119,
+      "sha256": "c73750099b853114683e9fdd725e02a1dd9b8a0dde4c45fa3f36993bfc181468"
+    },
+    {
+      "file": "checkpoints_original/A1_NoRoomInput.pt",
+      "model": "A1_NoRoomInput",
+      "checkpoint_stem": "A1_NoRoomInput",
+      "train_seed": 42,
+      "gain_max": null,
+      "fc_max": null,
+      "bytes": 1755601,
+      "sha256": "21e4cb5162be67df79dc78c1571921f4fedbf17bd2ee11e8b0f3376f3ab9cac4"
+    },
+    {
+      "file": "checkpoints_original/A2_NoPrefLoss.pt",
+      "model": "A2_NoPrefLoss",
+      "checkpoint_stem": "A2_NoPrefLoss",
+      "train_seed": 42,
+      "gain_max": null,
+      "fc_max": null,
+      "bytes": 2561119,
+      "sha256": "c73750099b853114683e9fdd725e02a1dd9b8a0dde4c45fa3f36993bfc181468"
+    },
+    {
+      "file": "checkpoints_original/A2_withPrefLoss.pt",
+      "model": "A2_withPrefLoss",
+      "checkpoint_stem": "A2_withPrefLoss",
+      "train_seed": 42,
+      "gain_max": 6.0,
+      "fc_max": 16000.0,
+      "bytes": 2573889,
+      "sha256": "423229f8fef260058927bd35a1d30090290cdc3ac602ade45c76027ae1274268"
+    },
+    {
+      "file": "checkpoints_original/A3_NoPrefInput.pt",
+      "model": "A3_NoPrefInput",
+      "checkpoint_stem": "A3_NoPrefInput",
+      "train_seed": 42,
+      "gain_max": null,
+      "fc_max": null,
+      "bytes": 1751097,
+      "sha256": "35cf7c42cdcb0ce2cf5a6890fdb318c21af296feae290dfe2a682a9cc2b09186"
+    },
+    {
+      "file": "checkpoints_original/AC1_BiLSTM.pt",
+      "model": "AC1_BiLSTM",
+      "checkpoint_stem": "AC1_BiLSTM",
+      "train_seed": 42,
+      "gain_max": null,
+      "fc_max": null,
+      "bytes": 3113600,
+      "sha256": "622b9a03bfc1864b5947d3ca3e44a87093be130a1c1bc37eeb4d39ee77a57ca5"
+    },
+    {
+      "file": "checkpoints_original/AC1_BiLSTM_Biquad.pt",
+      "model": "AC1_BiLSTM_Biquad",
+      "checkpoint_stem": "AC1_BiLSTM_Biquad",
+      "train_seed": 42,
+      "gain_max": 6.0,
+      "fc_max": 16000.0,
+      "bytes": 992158,
+      "sha256": "d69661d7ea5488a6b8ca3f45abc674e151aab6e4759356f634b994707208615a"
+    },
+    {
+      "file": "checkpoints_original/AC2_GRU.pt",
+      "model": "AC2_GRU",
+      "checkpoint_stem": "AC2_GRU",
+      "train_seed": 42,
+      "gain_max": null,
+      "fc_max": null,
+      "bytes": 3402593,
+      "sha256": "3b6ce58bfc48742f0100aef8b236b66fa4758eebe22df0487f4a230783f8ff51"
+    },
+    {
+      "file": "checkpoints_original/AC2_GRU_Biquad.pt",
+      "model": "AC2_GRU_Biquad",
+      "checkpoint_stem": "AC2_GRU_Biquad",
+      "train_seed": 42,
+      "gain_max": 6.0,
+      "fc_max": 16000.0,
+      "bytes": 1091185,
+      "sha256": "17b7ff12b26b986ec80e1893306c63e2f9d3081831e930e72bbe4c5cf3265b38"
+    },
+    {
+      "file": "checkpoints_original/AC3_Conformer.pt",
+      "model": "AC3_Conformer",
+      "checkpoint_stem": "AC3_Conformer",
+      "train_seed": 42,
+      "gain_max": null,
+      "fc_max": null,
+      "bytes": 5227315,
+      "sha256": "d9eb7a9748e32c175727a0de6e293a13be09ecbbc2f4bfabec36b1ca45dffee3"
+    },
+    {
+      "file": "checkpoints_original/AC3_Conformer_Biquad.pt",
+      "model": "AC3_Conformer_Biquad",
+      "checkpoint_stem": "AC3_Conformer_Biquad",
+      "train_seed": 42,
+      "gain_max": 6.0,
+      "fc_max": 16000.0,
+      "bytes": 1702481,
+      "sha256": "654e9c5cdb7add4a0d3d9db6798ad5b39d2fed775b4959b5b5ea0ad39f1364e4"
+    },
+    {
+      "file": "checkpoints_original/E3_Nercessian.pt",
+      "model": "E3_Nercessian",
+      "checkpoint_stem": "E3_Nercessian",
+      "train_seed": 42,
+      "gain_max": null,
+      "fc_max": null,
+      "bytes": 1675114,
+      "sha256": "945383119c8e33cca6970143bc43cb50ad62e24b2135cb4b4b83a56d43249884"
+    },
+    {
+      "file": "checkpoints_original/E4_Pepe.pt",
+      "model": "E4_Pepe",
+      "checkpoint_stem": "E4_Pepe",
+      "train_seed": 42,
+      "gain_max": null,
+      "fc_max": null,
+      "bytes": 622888,
+      "sha256": "13048f7c3ea9efb6faca336a4301a231c8218b7403750ec8c37136cf15d03942"
+    },
+    {
+      "file": "checkpoints_original/E5_Sequential.pt",
+      "model": "E5_Sequential",
+      "checkpoint_stem": "E5_Sequential",
+      "train_seed": 42,
+      "gain_max": null,
+      "fc_max": null,
+      "bytes": 1672621,
+      "sha256": "e9763109788570781bd41f0b243ecd4e2acc1e8f02718a29a92daf407989689a"
+    }
+  ]
+}

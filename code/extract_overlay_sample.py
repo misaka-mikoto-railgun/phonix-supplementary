@@ -18,11 +18,17 @@ import numpy as np
 import torch
 
 import train_full as TF
-from run_gain_freq_ablation import HERE, DEFAULT_DATA, cname
+from run_gain_freq_ablation import cname
 from export_track_level_predictions import TrackAwarePEQDataset
+import cli_paths
+import ckpt_io
+
+_P, _ = cli_paths.parse("frequency-response overlay sample", require=("data_dir", "rev_ckpt_dir"))
+DEFAULT_DATA = _P.data_dir      # --data_dir
+SAVE = _P.rev_ckpt_dir          # --rev_ckpt_dir
+OUT = _P.out_dir                # --out_dir
 
 device = torch.device("cpu" if not torch.cuda.is_available() else "cuda")
-SAVE = HERE / "checkpoints"
 SEED = 7   # 대표 seed (median seed, 다른 figure와 일관)
 
 ds = TrackAwarePEQDataset(f"{DEFAULT_DATA}/test_synth", device=str(device))
@@ -39,8 +45,8 @@ model = reg["A0_Proposed"]["model"]
 assert abs(model.gain_max - 12.0) < 1e-9, f"GAIN BOUND TRAP: gain_max={model.gain_max} (≠12)"
 assert abs(model.fc_max - 16000.0) < 1e-9, f"fc_max={model.fc_max}"
 print(f"[assert OK] A0 instance gain_max={model.gain_max}, fc_max={model.fc_max}")
-ck = torch.load(SAVE / f"{cname('g12_f16k', SEED, 'A0')}.pt", map_location=device, weights_only=False)
-model.load_state_dict(ck["model"] if "model" in ck else ck, strict=False)
+ckpt_io.load_into(model, SAVE / f"{cname('g12_f16k', SEED, 'A0')}.pt",
+                  map_location=device, label="A0_Proposed")
 model.to(device).eval()
 TF._REGISTRY_TARGET["A0_Proposed"] = "dual"
 
@@ -95,7 +101,7 @@ out = {
     "T_room_plus_pref_raw": (roomT[idx] + prefT[idx]).tolist(),   # 참고(비교용, smooth/clip 전)
     "bands_band0to6": bands,                                       # 7 biquad 분해
 }
-p = HERE / "results" / "fig_overlay_sample.json"
+p = OUT / "fig_overlay_sample.json"
 p.write_text(json.dumps(out, indent=2), encoding="utf-8")
 print(f"\n저장: {p}")
 print(f"배열: freqs/T_room/T_pref/T_dual/R_hat/H_hat (각 128) + bands(7×128) + T_room_plus_pref_raw(참고)")

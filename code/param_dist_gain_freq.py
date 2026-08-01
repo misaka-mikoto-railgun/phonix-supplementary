@@ -34,6 +34,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import torch
 
+import ckpt_io
+
 import train_full as TF
 from model import DualObjectiveAdaptivePEQ
 from dataset_generator_v4_tracklevel import PEQDataset
@@ -69,6 +71,8 @@ def main():
     ap.add_argument("--test_split", default="test_synth")
     ap.add_argument("--batch_size", type=int, default=512)
     ap.add_argument("--no_cuda",   action="store_true")
+    ap.add_argument("--allow_missing_ckpt", action="store_true",
+                    help="evaluate only the (config, seed) cells whose checkpoint exists")
     args = ap.parse_args()
 
     device = torch.device("cpu" if args.no_cuda or not torch.cuda.is_available() else "cuda")
@@ -92,12 +96,16 @@ def main():
         for seed in args.seeds:
             cp = _ckpt_path(c, seed, save_dir)
             if not Path(cp).exists():
+                # Skipping silently would leave the seed aggregate short without
+                # anything downstream noticing, so it has to be asked for.
+                if not args.allow_missing_ckpt:
+                    raise FileNotFoundError(
+                        f"checkpoint not found for config={c} seed={seed}: {cp}"
+                        "  (pass --allow_missing_ckpt to evaluate the cells that do exist)")
                 print(f"  [{c} s{seed}] ckpt 없음 — 스킵 ({cp})")
                 continue
             model = build_model(c)
-            ck = torch.load(cp, map_location=device, weights_only=False)
-            state = ck["model"] if isinstance(ck, dict) and "model" in ck else ck
-            model.load_state_dict(state, strict=False)
+            ckpt_io.load_into(model, cp, map_location=device, label=f"{c} s{seed}")
             g, fc = collect_gain_fc(cname(c, seed), model, ds, device, args.batch_size)
             sat_self.append(float(np.mean(g > (gmax - 0.2))))   # (a)
             over6.append(float(np.mean(g > FIXED_GAIN_REF)))     # (b) ★
@@ -110,7 +118,10 @@ def main():
         if not over6:
             continue
 
-        def ms(v): return (float(np.mean(v)), float(np.std(v)), len(v))
+        # 표본 표준편차(ddof=1)로 통일. seed 가 하나면 산포는 정의되지 않으므로 0.
+        def ms(v):
+            sd = float(np.std(v, ddof=1)) if len(v) > 1 else 0.0
+            return (float(np.mean(v)), sd, len(v))
         rows[c] = dict(
             gain_max=gmax, fc_max=fmax,
             gain_sat_self=ms(sat_self), gain_over6=ms(over6),
