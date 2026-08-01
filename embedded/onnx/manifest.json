@@ -26,7 +26,7 @@
     },
     "interp_replaced_with_matmul": true,
     "mode_embedding_replaced_with_onehot_matmul": true,
-    "host_preprocessing": "mode_onehot = one_hot(mode_id, 4) — host/C에서 trivial 인코딩(그래프 밖)",
+    "host_preprocessing": "mode_onehot = one_hot(mode_id, 4) - a trivial encoding done on the host/C side, outside the graph",
     "n_params_note": "n_params is captured before export-time graph surgery (GRU split / LSTM unroll); ONNX initializer totals differ by injected graph constants."
   },
   "variants": [
@@ -77,8 +77,8 @@
         ]
       },
       "output_format": "room_corr[1,128] (dense room-correction dB) + fc/gain/q [1,7] (7-band biquad params)",
-      "graph_boundary": "input → {room_corr, fc, gain, q}.  peq_response(가우시안)·biquad 계수계산·pref_curve 합성은 그래프 밖.",
-      "excluded_postprocessing": "host/C: ①pref_curve = band_gains→128 선형보간, ②7-band closed-form biquad(RBJ) 계수계산 후 room_corr(dense)와 합성. 가우시안 재구성은 학습전용이라 미사용.",
+      "graph_boundary": "input -> {room_corr, fc, gain, q}. peq_response (Gaussian), biquad coefficient computation and pref_curve synthesis are outside the graph.",
+      "excluded_postprocessing": "host/C: (1) pref_curve = band_gains linearly interpolated to 128 bins; (2) closed-form RBJ coefficients for the 7 bands, then combined with the dense room_corr. The Gaussian reconstruction is training-only and is not used here.",
       "parity_max_abs_err": 0.001953125,
       "gain_max_observed": 11.997346878051758,
       "gain_over6_frac": 0.7748326063156128,
@@ -165,8 +165,8 @@
         ]
       },
       "output_format": "room_corr[1,128] (dense room-correction dB) + fc/gain/q [1,7] (7-band biquad params)",
-      "graph_boundary": "input → {room_corr, fc, gain, q}.  peq_response(가우시안)·biquad 계수계산·pref_curve 합성은 그래프 밖.",
-      "excluded_postprocessing": "host/C: ①pref_curve = band_gains→128 선형보간, ②7-band closed-form biquad(RBJ) 계수계산 후 room_corr(dense)와 합성. 가우시안 재구성은 학습전용이라 미사용.",
+      "graph_boundary": "input -> {room_corr, fc, gain, q}. peq_response (Gaussian), biquad coefficient computation and pref_curve synthesis are outside the graph.",
+      "excluded_postprocessing": "host/C: (1) pref_curve = band_gains linearly interpolated to 128 bins; (2) closed-form RBJ coefficients for the 7 bands, then combined with the dense room_corr. The Gaussian reconstruction is training-only and is not used here.",
       "parity_max_abs_err": 0.001220703125,
       "gain_max_observed": 11.998007774353027,
       "gain_over6_frac": 0.4885602593421936,
@@ -237,12 +237,12 @@
         ]
       },
       "output_format": "fc/gain/q [1,5] (5-band parametric PEQ params)",
-      "graph_boundary": "input → {fc, gain, q}.  response(가우시안)·biquad 계수계산은 그래프 밖.",
-      "excluded_postprocessing": "host/C: 5-band closed-form biquad 계수계산. 가우시안 재구성은 학습전용.",
+      "graph_boundary": "input -> {fc, gain, q}. response (Gaussian) and biquad coefficient computation are outside the graph.",
+      "excluded_postprocessing": "host/C: closed-form biquad coefficients for the 5 bands. The Gaussian reconstruction is training-only.",
       "parity_max_abs_err": 0.00146484375,
       "gain_max_observed": 7.188028335571289,
       "gain_over6_frac": 0.800000011920929,
-      "gain_gate": "n/a (구조적 ±12, trap 없음)",
+      "gain_gate": "n/a (structurally +/-12 dB, so the clamp trap cannot apply)",
       "interp_matmul_pou_err": null,
       "onnx_ops": [
         "Add",
@@ -293,12 +293,12 @@
         ]
       },
       "output_format": "fc/gain/q [1,5] (5-band parametric PEQ params)",
-      "graph_boundary": "input → {fc, gain, q}.  response(가우시안)·biquad 계수계산은 그래프 밖.",
-      "excluded_postprocessing": "host/C: 5-band closed-form biquad 계수계산. 가우시안 재구성은 학습전용.",
+      "graph_boundary": "input -> {fc, gain, q}. response (Gaussian) and biquad coefficient computation are outside the graph.",
+      "excluded_postprocessing": "host/C: closed-form biquad coefficients for the 5 bands. The Gaussian reconstruction is training-only.",
       "parity_max_abs_err": 0.00146484375,
       "gain_max_observed": 11.652302742004395,
       "gain_over6_frac": 0.23281249403953552,
-      "gain_gate": "n/a (구조적 ±12, trap 없음)",
+      "gain_gate": "n/a (structurally +/-12 dB, so the clamp trap cannot apply)",
       "interp_matmul_pou_err": null,
       "onnx_ops": [
         "Add",
@@ -351,13 +351,13 @@
           5
         ]
       },
-      "output_format": "fc/gain/q [1,5] (내부 E3 room-corrector; E2 pref는 고정 테이블/비신경망)",
-      "graph_boundary": "input → {fc, gain, q}(E3).  E2 테이블 합산은 그래프 밖.",
-      "excluded_postprocessing": "host/C: 5-band closed-form biquad(E3) + 고정 모드 프로파일(E2) 합산.",
+      "output_format": "fc/gain/q [1,5] (the internal E3 room corrector; the E2 preference part is a fixed table, not a network)",
+      "graph_boundary": "input -> {fc, gain, q} (E3). The E2 table sum is outside the graph.",
+      "excluded_postprocessing": "host/C: closed-form biquad coefficients for the 5 bands (E3), summed with the fixed mode profile (E2).",
       "parity_max_abs_err": 0.001953125,
       "gain_max_observed": 5.612678527832031,
       "gain_over6_frac": 0.0,
-      "gain_gate": "n/a (구조적 ±12, trap 없음)",
+      "gain_gate": "n/a (structurally +/-12 dB, so the clamp trap cannot apply)",
       "interp_matmul_pou_err": null,
       "onnx_ops": [
         "Add",
@@ -424,8 +424,8 @@
         ]
       },
       "output_format": "room_corr[1,128] (dense room-correction dB) + fc/gain/q [1,7] (7-band biquad params)",
-      "graph_boundary": "input → {room_corr, fc, gain, q}.  peq_response(가우시안)·biquad 계수계산·pref_curve 합성은 그래프 밖.",
-      "excluded_postprocessing": "host/C: ①pref_curve = band_gains→128 선형보간, ②7-band closed-form biquad(RBJ) 계수계산 후 room_corr(dense)와 합성. 가우시안 재구성은 학습전용이라 미사용.",
+      "graph_boundary": "input -> {room_corr, fc, gain, q}. peq_response (Gaussian), biquad coefficient computation and pref_curve synthesis are outside the graph.",
+      "excluded_postprocessing": "host/C: (1) pref_curve = band_gains linearly interpolated to 128 bins; (2) closed-form RBJ coefficients for the 7 bands, then combined with the dense room_corr. The Gaussian reconstruction is training-only and is not used here.",
       "parity_max_abs_err": 0.001708984375,
       "gain_max_observed": 10.810931205749512,
       "gain_over6_frac": 0.3836495578289032,
@@ -508,8 +508,8 @@
         ]
       },
       "output_format": "room_corr[1,128] (dense room-correction dB) + fc/gain/q [1,7] (7-band biquad params)",
-      "graph_boundary": "input → {room_corr, fc, gain, q}.  peq_response(가우시안)·biquad 계수계산·pref_curve 합성은 그래프 밖.",
-      "excluded_postprocessing": "host/C: ①pref_curve = band_gains→128 선형보간, ②7-band closed-form biquad(RBJ) 계수계산 후 room_corr(dense)와 합성. 가우시안 재구성은 학습전용이라 미사용.",
+      "graph_boundary": "input -> {room_corr, fc, gain, q}. peq_response (Gaussian), biquad coefficient computation and pref_curve synthesis are outside the graph.",
+      "excluded_postprocessing": "host/C: (1) pref_curve = band_gains linearly interpolated to 128 bins; (2) closed-form RBJ coefficients for the 7 bands, then combined with the dense room_corr. The Gaussian reconstruction is training-only and is not used here.",
       "parity_max_abs_err": 0.0006103515625,
       "gain_max_observed": 11.420219421386719,
       "gain_over6_frac": 0.455078125,
@@ -594,8 +594,8 @@
         ]
       },
       "output_format": "room_corr[1,128] (dense room-correction dB) + fc/gain/q [1,7] (7-band biquad params)",
-      "graph_boundary": "input → {room_corr, fc, gain, q}.  peq_response(가우시안)·biquad 계수계산·pref_curve 합성은 그래프 밖.",
-      "excluded_postprocessing": "host/C: ①pref_curve = band_gains→128 선형보간, ②7-band closed-form biquad(RBJ) 계수계산 후 room_corr(dense)와 합성. 가우시안 재구성은 학습전용이라 미사용.",
+      "graph_boundary": "input -> {room_corr, fc, gain, q}. peq_response (Gaussian), biquad coefficient computation and pref_curve synthesis are outside the graph.",
+      "excluded_postprocessing": "host/C: (1) pref_curve = band_gains linearly interpolated to 128 bins; (2) closed-form RBJ coefficients for the 7 bands, then combined with the dense room_corr. The Gaussian reconstruction is training-only and is not used here.",
       "parity_max_abs_err": 0.0009765625,
       "gain_max_observed": 11.343124389648438,
       "gain_over6_frac": 0.63671875,

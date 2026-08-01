@@ -376,17 +376,17 @@ SPECS = [
 OUT_FORMAT = {
     "w7":  "room_corr[1,128] (dense room-correction dB) + fc/gain/q [1,7] (7-band biquad params)",
     "we":  "fc/gain/q [1,5] (5-band parametric PEQ params)",
-    "we5": "fc/gain/q [1,5] (내부 E3 room-corrector; E2 pref는 고정 테이블/비신경망)",
+    "we5": "fc/gain/q [1,5] (the internal E3 room corrector; the E2 preference part is a fixed table, not a network)",
 }
 POSTPROC = {
-    "w7":  "host/C: ①pref_curve = band_gains→128 선형보간, ②7-band closed-form biquad(RBJ) 계수계산 후 room_corr(dense)와 합성. 가우시안 재구성은 학습전용이라 미사용.",
-    "we":  "host/C: 5-band closed-form biquad 계수계산. 가우시안 재구성은 학습전용.",
-    "we5": "host/C: 5-band closed-form biquad(E3) + 고정 모드 프로파일(E2) 합산.",
+    "w7":  "host/C: (1) pref_curve = band_gains linearly interpolated to 128 bins; (2) closed-form RBJ coefficients for the 7 bands, then combined with the dense room_corr. The Gaussian reconstruction is training-only and is not used here.",
+    "we":  "host/C: closed-form biquad coefficients for the 5 bands. The Gaussian reconstruction is training-only.",
+    "we5": "host/C: closed-form biquad coefficients for the 5 bands (E3), summed with the fixed mode profile (E2).",
 }
 BOUNDARY = {
-    "w7":  "input → {room_corr, fc, gain, q}.  peq_response(가우시안)·biquad 계수계산·pref_curve 합성은 그래프 밖.",
-    "we":  "input → {fc, gain, q}.  response(가우시안)·biquad 계수계산은 그래프 밖.",
-    "we5": "input → {fc, gain, q}(E3).  E2 테이블 합산은 그래프 밖.",
+    "w7":  "input -> {room_corr, fc, gain, q}. peq_response (Gaussian), biquad coefficient computation and pref_curve synthesis are outside the graph.",
+    "we":  "input -> {fc, gain, q}. response (Gaussian) and biquad coefficient computation are outside the graph.",
+    "we5": "input -> {fc, gain, q} (E3). The E2 table sum is outside the graph.",
 }
 
 
@@ -429,7 +429,7 @@ def main():
                                    "mode_onehot": [1, 4], "band_gains": [1, 10]},
             "interp_replaced_with_matmul": True,
             "mode_embedding_replaced_with_onehot_matmul": True,
-            "host_preprocessing": "mode_onehot = one_hot(mode_id, 4) — host/C에서 trivial 인코딩(그래프 밖)",
+            "host_preprocessing": "mode_onehot = one_hot(mode_id, 4) - a trivial encoding done on the host/C side, outside the graph",
             "n_params_note": ("n_params is captured before export-time graph surgery "
                               "(GRU split / LSTM unroll); ONNX initializer totals differ by "
                               "injected graph constants."),
@@ -500,7 +500,7 @@ def main():
         if cond:
             gate = "PASS" if gain_max_obs > 6.0 else "FAIL"
         else:
-            gate = "n/a (구조적 ±12, trap 없음)"
+            gate = "n/a (structurally +/-12 dB, so the clamp trap cannot apply)"
         print(f"  gain: max|g|={gain_max_obs:.3f}  |g|>6={over6*100:.1f}%  (bound±{gmax:.0f}) gate={gate}")
         if gate == "FAIL":
             all_ok = False
@@ -612,7 +612,7 @@ def main():
         json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
     write_manifest_md(manifest)
     print("\n" + "=" * 70)
-    print(f"DONE — manifest.json / manifest.md 작성.  전체 게이트: {'ALL OK' if all_ok else '주의(위 로그 확인)'}")
+    print(f"DONE - manifest.json / manifest.md written. Overall gate: {'ALL OK' if all_ok else 'CHECK (see the log above)'}")
     print("=" * 70)
     return 0 if all_ok else 1
 
@@ -625,11 +625,14 @@ def write_manifest_md(man):
     L.append(f"- opset: **{f['opset']}**, batch=1, dynamic_axes={f['dynamic_axes']}, dtype={f['dtype']}")
     L.append(f"- backbone input: `feat {f['backbone_input_shape']}` (seq_len=32=4.0s, in_dim=10)")
     L.append(f"- conditional inputs: room_response[1,128], **mode_onehot[1,4] float**, band_gains[1,10]")
-    L.append(f"- pref_curve `_interp` → 상수 matmul 치환(searchsorted 제거, parity 보존)")
-    L.append(f"- mode embedding(nn.Embedding Gather) → one-hot matmul 치환"
-             f"(ST Edge AI Core 의 embedding-table batch 오인 회피; host에서 one-hot 인코딩)\n")
-    L.append(f"- standalone Pad → Conv.pads 흡수(fold_pad_into_conv): X-CUBE-AI 10.2.0 의 "
-             f"Pad codegen 버그 회피. causal pads=[(k-1)*dilation, 0]")
+    L.append("- pref_curve `_interp` replaced by a constant matmul "
+             "(removes searchsorted; parity preserved)")
+    L.append("- mode embedding (nn.Embedding Gather) replaced by a one-hot matmul "
+             "(ST Edge AI Core mistook the embedding table's leading dimension "
+             "for a batch; the one-hot encoding is done on the host)" + chr(10))
+    L.append("- standalone Pad folded into Conv.pads (fold_pad_into_conv), working "
+             "around the Pad codegen bug in X-CUBE-AI 10.2.0. "
+             "Causal pads=[(k-1)*dilation, 0]")
     L.append("| variant | group | onnx | ckpt | seed | gain_max | params | parity max|err| | max\\|gain\\| | gate | MACC(thop) | HARD blocker | VERIFY ops |")
     L.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|")
     for v in man["variants"]:
@@ -637,13 +640,13 @@ def write_manifest_md(man):
                  f"{v['seed']} | {v['gain_max']} | {v['n_params']:,} | {v['parity_max_abs_err']:.2e} | "
                  f"{v['gain_max_observed']:.2f} | {v['gain_gate']} | {v['macc_thop']} | "
                  f"{v['cubeai_hard_blocker_ops'] or '-'} | {v['cubeai_verify_ops'] or '-'} |")
-    L.append("\n## 그래프 경계 & 제외 post-processing\n")
+    L.append("\n## Graph boundary and excluded post-processing\n")
     for v in man["variants"]:
         L.append(f"### {v['name']} (`{v['onnx']}`)")
         L.append(f"- output format: {v['output_format']}")
         L.append(f"- output shapes: {v['output_shape']}")
         L.append(f"- graph boundary: {v['graph_boundary']}")
-        L.append(f"- excluded post-proc (C에서 측정 = 비교표 2nd 컬럼): {v['excluded_postprocessing']}")
+        L.append(f"- excluded post-processing (measured in C; second column of the comparison table): {v['excluded_postprocessing']}")
         L.append(f"- onnx ops: {v['onnx_ops']}\n")
     (Path(man.get("_md_dir", OUT_DIR)) / "manifest.md").write_text("\n".join(L), encoding="utf-8")
 

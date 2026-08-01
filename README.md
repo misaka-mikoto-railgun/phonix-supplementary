@@ -2,11 +2,12 @@
 
 Code, generated tables and figures, and embedded-deployment artefacts for the
 JAES engineering report on real-time adaptive parametric equalisation for joint
-room correction and tonal-shape tracking.
+room correction and tonal-shape reproduction.
 
 This release describes the system as reported: a two-stage model whose Stage-B
-parametric-EQ head emits seven biquad sections with a **per-section gain bound of
-±12 dB** and centre frequencies in **[80, 16000] Hz**.
+parametric-EQ head outputs parameters for seven biquad sections, with a
+**per-section gain bound of ±12 dB** and centre frequencies in
+**[80, 16000] Hz**.
 
 > Manuscript details (ID, DOI) are filled in on acceptance.
 
@@ -22,7 +23,7 @@ parametric-EQ head emits seven biquad sections with a **per-section gain bound o
 ```
 code/            model, training, evaluation and table/figure scripts
 figures/         F1–F6, fig_ac_fitting, fig_response_overlay, param_dist (PNG + PDF)
-tables/          consolidated tables (T1–T7) and per-metric CSVs
+tables/          consolidated tables (T2–T5) and per-metric CSVs
 results_json/    raw metric outputs (per-seed summaries, paired/track statistics,
                  saturation distributions, response-overlay sample) and the
                  ac_fitting_*.csv inputs that Table 4 is assembled from
@@ -65,6 +66,7 @@ Splits: `train`, `val`, `test_synth`, `test_real` (BUT ReverbDB + OpenAIR),
 | `tables/T2_paired_stats_3seed.csv`, `results_json/paired_stats_3seed_*.json` | paired diagnostics quoted in Section 3.2 |
 | `tables/T3_tracklevel_3seed.csv`, `results_json/track_stats_3seed_*.json` | track-level aggregate quoted in Section 3.2 |
 | `tables/T4_saturation.csv`, `figures/F1_saturation_A0.*` | gain-saturation statistics (Section 3.4) |
+| `tables/seed_results.csv` | the individual seed runs that the three-seed A0/A2 rows average |
 | `embedded/` | Tables 6 and 7 (deployment footprint and on-chip latency) |
 
 ### How Table 4 is put together
@@ -192,6 +194,8 @@ repository's layout.
 | `table2_revision.py` … `table7_perceptual.py` | main, ablation, paired, OOD and perceptual tables |
 | `ac_biquad_table.py`, `ac_fitting_A.py`, `ac_fitting_C.py` | biquad-constrained architecture comparison |
 | `table6_biquad.py` | assembles Table 4 from the files above; no GPU or checkpoint needed |
+| `make_manifests.py` | writes `checkpoints_manifest.json` and `dataset_manifest.json` |
+| `make_eval_staging.py` | rebuilds the evaluation staging directory from the manifest mapping |
 | `param_dist_gain_freq.py` | gain / centre-frequency saturation statistics |
 | `consolidate.py` | figures F1–F6 (colour-blind safe, legible in greyscale) |
 | `extract_overlay_sample.py`, `make_overlay_figure.py` | median-sample frequency-response overlay |
@@ -241,6 +245,34 @@ figures use is `checkpoints_revision/A0_g12_f16k_s7.pt`.
 checkpoints_original/    15 files, pre-revision
 checkpoints_revision/    12 files, retrained under the ±12 dB bound
 ```
+
+They are attached to the release as `checkpoints_original.zip` and
+`checkpoints_revision.zip`, each containing that directory. Unpack both into one
+place and the layout matches the `file` paths in the manifest:
+
+```bash
+unzip checkpoints_original.zip -d /path/to/ckpt
+unzip checkpoints_revision.zip -d /path/to/ckpt
+# /path/to/ckpt/checkpoints_original/A0_Proposed.pt
+# /path/to/ckpt/checkpoints_revision/A0_g12_f16k_s7.pt
+
+python code/make_eval_staging.py \
+    --ckpt_dir /path/to/ckpt/checkpoints_original \
+    --rev_ckpt_dir /path/to/ckpt/checkpoints_revision \
+    --out_dir /path/to/ckpt/ckpt_eval
+
+CKPT_DIR=/path/to/ckpt/checkpoints_original \
+REV_CKPT_DIR=/path/to/ckpt/checkpoints_revision \
+EVAL_CKPT_DIR=/path/to/ckpt/ckpt_eval \
+DATA_DIR=/path/to/dataset_v3 bash scripts/run_all_refresh.sh
+```
+
+`make_eval_staging.py` is what turns `evaluation_staging` back into a directory:
+it copies the pre-revision set, applies the two substitutions the mapping
+declares, and checks every file it writes against the SHA-256 in the manifest.
+The result is byte-identical to the staging directory the published results were
+produced from — which is why the mapping is published as a statement rather than
+as a directory of files whose names would contradict each other.
 
 The working tree applied the "representative seed 7" convention by substituting
 files inside a staging directory, which is what produced the name collision.

@@ -1,0 +1,7 @@
+﻿model,seed,lsd,dmr,cossim,checkpoint
+A0_Proposed,42,0.9994,0.9415,0.9790,A0_g12_f16k_s42.pt
+A0_Proposed,123,1.2578,0.9045,0.9644,A0_g12_f16k_s123.pt
+A0_Proposed,7,1.0279,0.9405,0.9772,A0_g12_f16k_s7.pt
+A2_withPrefLoss,42,1.0306,0.9356,0.9768,A2_g12_f16k_s42.pt
+A2_withPrefLoss,123,1.1054,0.9329,0.9733,A2_g12_f16k_s123.pt
+A2_withPrefLoss,7,1.8517,0.9305,0.9247,A2_g12_f16k_s7.pt

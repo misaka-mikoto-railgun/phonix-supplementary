@@ -144,6 +144,7 @@ if ($Publish) {
     $jsonDst = Join-Path $repoRoot "results_json"
     New-Item -ItemType Directory -Force -Path $tabDst, $figDst, $jsonDst | Out-Null
     Copy-Item (Join-Path $results "table*.csv") $tabDst -Force
+    Copy-Item (Join-Path $results "seed_results.csv") $tabDst -Force
     Copy-Item (Join-Path $paperOut "tables\T[2-5]_*.csv") $tabDst -Force
     Copy-Item (Join-Path $paperOut "figures\F[1-6]_*.png") $figDst -Force
     Copy-Item (Join-Path $paperOut "figures\F[1-6]_*.pdf") $figDst -Force

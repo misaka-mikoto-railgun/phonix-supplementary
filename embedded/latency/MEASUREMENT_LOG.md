@@ -26,8 +26,8 @@ file is therefore expected and does not indicate an absence of measurement.
 | core clock | 168 MHz (SYSCLK), ART prefetch + I/D cache ON, FPU on | `[file: ../cmsis_mfcc/README_MFCC_BENCH.md]` |
 | probe | ST-Link V2 clone (no VCP) | `[session record]` |
 | power | USB-C | `[session record]` |
-| flash / SRAM | 1024 KiB / 192 KB (F405RG) | `[datasheet]` |
-| SRAM composition | 112 KB SRAM1 + 16 KB SRAM2 (128 KB contiguous, DMA-accessible) + 64 KB CCM (D-bus, no DMA) + 4 KB backup | `[datasheet]` |
+| flash / SRAM | 1024 KiB flash / 192 KiB total SRAM (F405RG) | `[datasheet]` |
+| SRAM composition | 128 KiB main SRAM (112 KiB SRAM1 + 16 KiB SRAM2, contiguous, DMA-accessible) + 64 KiB CCM (D-bus, no DMA); the separate 4 KiB backup SRAM is excluded from the 192 KiB | `[datasheet]` |
 
 ## Toolchain
 
@@ -74,19 +74,23 @@ per-variant cycle counts other than A0; those rows are marked
 |---|---|---|---|
 | A0_Proposed | 288.3 ms | slower than FP32 on this MCU | `[session record]` |
 | AC2_GRU_Biquad | 389.6 ms | | `[session record]` |
-| AC3_Conformer_Biquad | N/A | activation buffer over budget by ≈ 78 KB | `[session record]` |
+| AC3_Conformer_Biquad | N/A | activation buffer over budget by ≈ 78 KiB | `[session record]` |
 
 INT8 accuracy impact is in `[file: ../onnx/INT8_EVAL.md]` (that file contains accuracy
 only — no size or latency figures).
 
-The ≈ 78 KB overrun for AC3 is a session record: the linker `.map` and the
-CubeIDE project are not part of this repository, so neither the region the
-activation buffer was placed in nor the exact shortfall can be re-derived here.
-For scale, the ST Edge AI `analyze` step reports 96.94 KiB RAM(total) for the
-FP32 graph `[file: ../build_reports/ST_VALIDATION.md]`; that figure covers the
-analysed graph only, not the built application, and is not the number the
-overrun was measured against. The other rows in this file are cycle-counter
-measurements and do not depend on it.
+**What the ≈ 78 KiB overrun is, and is not.** It is a session record. The linker
+`.map` and the CubeIDE project are not part of this repository, so two things
+cannot be re-derived here: which region the activation buffer was placed in, and
+what budget the shortfall was measured against. In particular this file does
+**not** claim that X-CUBE-AI used CCM as the activation arena, nor that it did
+not — that was never established.
+
+For scale only: ST Edge AI `analyze` reports 96.94 KiB RAM(total) for the FP32
+graph `[file: ../build_reports/ST_VALIDATION.md]`. That covers the analysed
+graph, not the built application, and is not the figure the overrun was measured
+against. Every other row in this file is a DWT cycle-counter measurement and
+does not depend on it.
 
 ## Feature front-end (CMSIS-DSP MFCC)
 

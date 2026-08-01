@@ -113,6 +113,7 @@ if [ "$PUBLISH" = "1" ]; then
     echo "=== publish ==="
     mkdir -p "$REPO_ROOT/tables" "$REPO_ROOT/figures" "$REPO_ROOT/results_json"
     cp "$RESULTS"/table*.csv             "$REPO_ROOT/tables/"
+    cp "$RESULTS"/seed_results.csv       "$REPO_ROOT/tables/"
     cp "$PAPER_OUT"/tables/T[2-5]_*.csv  "$REPO_ROOT/tables/"
     cp "$PAPER_OUT"/figures/F[1-6]_*.png "$PAPER_OUT"/figures/F[1-6]_*.pdf "$REPO_ROOT/figures/"
     cp "$PAPER_OUT"/figures/fig_*.png "$PAPER_OUT"/figures/fig_*.pdf "$REPO_ROOT/figures/" 2>/dev/null || true

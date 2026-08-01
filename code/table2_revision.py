@@ -90,13 +90,20 @@ for disp, name, ckpt in ROWS:
                     rtf=RTF.get(name), params=PARAMS.get(name), seeds="1(orig)"))
 
 # A0 / A2 — gain±12, 3-seed
+per_seed = []
 for disp, var in [("A0 Proposed (±12)", "A0"), ("A2 with Pref Loss (±12)", "A2")]:
     regname = "A0_Proposed" if var == "A0" else "A2_withPrefLoss"
     lsd_means, dmrs, coss = [], [], []
     for s in SEEDS:
-        p = predict(regname, SAVE / f"{cname('g12_f16k', s, var)}.pt")
-        la, da, ca = arrs(p)
+        ckpt = SAVE / f"{cname('g12_f16k', s, var)}.pt"
+        la, da, ca = arrs(predict(regname, ckpt))
         lsd_means.append(la.mean()); dmrs.append(da.mean()); coss.append(ca.mean())
+        # The per-seed rows are what the 3-seed row is the mean of. They are
+        # recorded so that neither the mean nor the spread has to be inverted
+        # to recover an individual seed.
+        per_seed.append(dict(model=regname, seed=s, lsd=f"{la.mean():.4f}",
+                             dmr=f"{da.mean():.4f}", cossim=f"{ca.mean():.4f}",
+                             checkpoint=ckpt.name))
     # 3-seed 행은 CI 대신 seed 표준편차를 싣는다. 표본 3000개짜리 단일 실행에
     # 붙는 bootstrap CI 와 seed 간 산포는 서로 다른 불확실성이고, 원고 Table 1 도
     # 이 행들에 한해 ±std 를 인쇄한다. seed 를 표본처럼 합쳐 pooled(N=9000) 로
@@ -120,6 +127,12 @@ with open(csvp, "w", newline="", encoding="utf-8-sig") as f:
         wtr.writerow({**r, "lsd": f"{r['lsd']:.3f}", "ci_lo": f3(r["ci_lo"]),
                       "ci_hi": f3(r["ci_hi"]), "dmr": f"{r['dmr']:.3f}",
                       "cossim": f"{r['cossim']:.3f}", "lsd_std": f3(r["lsd_std"])})
+
+seedp = OUT / "seed_results.csv"
+with open(seedp, "w", newline="", encoding="utf-8-sig") as f:
+    wtr = csv.DictWriter(f, fieldnames=["model", "seed", "lsd", "dmr", "cossim", "checkpoint"])
+    wtr.writeheader()
+    wtr.writerows(per_seed)
 
 print("=" * 104)
 print("Table 2 (MAIN, SYNTHETIC test_synth, N=3000) — gain ±12 revision basis")
