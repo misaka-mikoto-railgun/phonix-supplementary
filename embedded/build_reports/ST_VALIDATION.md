@@ -180,8 +180,12 @@ The LSD accuracy reported in the paper is measured in PyTorch.
   with 5 bands.
 - `duration ms/sample` in a report is a host (x86) figure. The F405 latency is
   measured on the board with the DWT cycle counter.
-- Two figures are definitional rather than drift: `analyze` weights include graph
-  constants the tool adds, so they exceed `params × 4` (A0: 823,080 B against
-  794.7 KiB of parameters), and the `analyze` flash total is an estimate rather
-  than a linked image. FP32 weight sizes from the parameter counts are
-  reproducible with `../onnx/verify_fp32_weights.py`.
+- **Reconciling with the paper's Table 6.** Its FP32 *Weights* column is
+  `params × 4 / 1024` from the PyTorch parameter count, not the weight segment
+  above. `analyze` counts slightly more parameters because export-time graph
+  surgery injects constants — A0 204,738 against 203,447 (+0.63 %), E3 138,260
+  against 138,255, AC1 241,890 against 240,758, AC2 267,013 against 265,590,
+  AC3 412,998 against 411,959. No fit decision changes. The parameter-count
+  figures are reproducible with `../onnx/verify_fp32_weights.py`.
+- The paper's *RAM* column is the **total** above, and its Fit column is decided
+  on total flash and total RAM together, which is why AC1 fails on both.

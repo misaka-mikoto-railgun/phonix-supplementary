@@ -132,16 +132,34 @@ this file is a DWT cycle-counter read-out and does not depend on them.
 
 ## Flash footprint and fit
 
-| variant | analyze (weights) | build flash | fit (1024 KiB) | source |
-|---|---|---|---|---|
-| A0 / A2 | 804 KiB | **896 KB** | ✓ (78%) | `[session record]` |
-| AC1_BiLSTM_Biquad | ~940 KiB | ~1.0–1.1 MB (unrolled) | ✗ over | `[session record]` |
-| AC2_GRU_Biquad | 1.02 MiB | 1.12 MB | ✗ over | `[session record]` |
-| AC3_Conformer_Biquad | 1.58 MiB (+58%), MACC 44.8 M | — | ✗ over | `[session record]` |
+Two different quantities, kept apart. `analyze weights` is the weight segment;
+`analyze total` adds the ST runtime and generated code and is what a link has to
+fit. The June column is what the CubeIDE build actually produced at the time and
+is a session record; the analyze columns are from the 2026-08-02 reports against
+the graphs regenerated on 2026-07-29, and are the figures the paper quotes.
 
-`analyze` reports weight-dominated size; a real build adds roughly 100 KiB of runtime
-and HAL. **fit / no-fit is decided on the build figure**, cross-checked by
-A0 804 KiB → 896 KB and AC2 1.02 MiB → 1.12 MB. `[session record]`
+| variant | analyze weights | **analyze total** | June build | fit (1024 KiB) |
+|---|---|---|---|---|
+| A0 / A2 | 823,080 B (803.79 KiB) | **905,127 B (883.91 KiB)** | 896 KB `[session record]` | ✓ |
+| AC1_BiLSTM_Biquad (unrolled) | 971,692 B (948.92 KiB) | **1,277,193 B (1247.26 KiB)** | ~1.0–1.1 MB `[session record]` | ✗ |
+| AC2_GRU_Biquad | 1,072,056 B (1046.93 KiB) | **1,164,688 B (1137.39 KiB)** | 1.12 MB `[session record]` | ✗ |
+| AC3_Conformer_Biquad | 1,656,164 B (1617.35 KiB) | **1,796,380 B (1754.28 KiB)** | — | ✗ |
+| AC3_Conformer_Biquad INT8 | 683,084 B (667.07 KiB) | **932,644 B (910.79 KiB)** | — | ✓ |
+
+Analyze figures `[file: ../build_reports/analyze_a0.txt]`,
+`[file: ../build_reports/analyze_ac1.txt]`,
+`[file: ../build_reports/analyze_ac2.txt]`,
+`[file: ../build_reports/analyze_ac3.txt]`,
+`[file: ../build_reports/analyze_ac3_int8.txt]`; the full set including the
+E-series and the other INT8 graphs is tabulated in
+`[file: ../build_reports/ST_VALIDATION.md]`.
+
+The June build figures corroborate the analyze totals to within about 1 %
+(A0 896 KB against 905 KB, AC2 1.12 MB against 1.16 MB) — close enough that the
+fit decisions are the same either way, which is why the earlier record could be
+read as consistent. **Flash is not the only budget**, though: AC1 also fails on
+RAM, needing 278,080 B against the 112 KiB region, and that was not visible while
+only activations were being recorded.
 
 FP32 weight sizes are reproducible from the parameter counts:
 `embedded/onnx/verify_fp32_weights.py` (`KiB = n_params × 4 / 1024`).
