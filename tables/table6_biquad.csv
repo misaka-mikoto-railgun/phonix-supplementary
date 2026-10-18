@@ -1,9 +1,9 @@
-﻿Configuration,LSD,95% CI,vs A0(1.095),% < JND,repr. penalty
-"AC1_BiLSTM Biquad (Option C, ±12)",1.010,"[0.999,1.021]",-0.085,87.0,+0.157
-"AC2_GRU Biquad (Option C, ±12)",1.017,"[1.006,1.029]",-0.078,86.5,+0.157
-"AC3_Conformer Biquad (Option C, ±12)",1.010,"[0.999,1.021]",-0.085,86.1,+0.140
-Option A SciPy fit ±12 (AC2),0.918,"[0.908,0.929]",-0.177,,+0.058
-"Option A SciPy fit ±6 (AC2, orig)",1.026,—,-0.069,,+0.166
-Option D naive 7-pt (AC2),7.755,"[7.621,7.902]",+6.660,,
-"dense AC2 (raw, reference)",0.860,"[0.850,0.870]",-0.235,,
-A0 Proposed ±12 (reference),1.095,"[1.083,1.107]",0.000,—,
+﻿Configuration,LSD,95% CI,vs A0(0.907),% < JND,repr. penalty
+"AC1_BiLSTM Biquad (Option C, ±12)",0.929,"[0.919,0.938]",+0.022,99.3,+0.082
+"AC2_GRU Biquad (Option C, ±12)",0.937,"[0.927,0.946]",+0.030,98.8,+0.083
+"AC3_Conformer Biquad (Option C, ±12)",0.899,"[0.890,0.908]",-0.008,98.8,+0.031
+Option A SciPy fit ±12 (AC2),0.916,"[0.905,0.927]",+0.009,,+0.062
+"Option A SciPy fit ±6 (AC2, orig)",1.026,—,+0.119,,+0.166
+Option D naive 7-pt (AC2),2.294,"[2.277,2.310]",+1.387,,
+"dense AC2 (raw, reference)",0.854,"[0.844,0.864]",-0.053,,
+A0 Proposed ±12 (reference),0.907,"[0.898,0.916]",0.000,—,

@@ -1,0 +1,5 @@
+Model/Condition,LSD mean,95% CI
+AC2_GRU dense (raw),0.8545,"[0.8441,0.8640]"
+AC2_GRU biquad-fitted,0.9164,"[0.9055,0.9268]"
+Representation penalty,0.0620,"[0.0581,0.0659]"
+A0_Proposed (reference),0.9072,"[0.8977,0.9155]"

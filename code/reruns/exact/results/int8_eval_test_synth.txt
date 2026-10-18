@@ -1,0 +1,13 @@
+# INT8 PTQ vs FP32, v1.2 checkpoints (test_synth, n=3000)
+# export_onnx.py (dynamo=False) -> build_calib.py -> quantize_ptq.py a0 e3_nercessian e4_pepe ac2_gru_biquad ac3_conformer_biquad -> eval_int8.py
+# re-exported graphs: ops / initializer sizes / I-O identical to embedded/onnx/*.onnx
+==============================================================================
+variant  fp32 LSD  int8 LSD     ΔLSD   ΔLSD%  fp32 cos  int8 cos     Δcos
+------------------------------------------------------------------------------
+A0        0.9235    0.9733  +0.0499   +5.4%    0.9821    0.9806  -0.0015
+E3        5.9911    5.9909  -0.0002   -0.0%    0.0031    0.0029  -0.0001
+E4        5.8074    5.8104  +0.0029   +0.1%    0.0143    0.0149  +0.0005
+AC2       0.9370    0.9859  +0.0489   +5.2%    0.9810    0.9795  -0.0016
+AC3       0.8994    0.9518  +0.0524   +5.8%    0.9815    0.9801  -0.0014
+==============================================================================
+LSD: dual-target, lower better. cos: heard vs pref_target, higher better. (test_synth, n=3000)
