@@ -95,7 +95,7 @@ hdr = (f"{'config':>24} {'LSD[95%CI]':>22} {'vsA0':>8} "
 print(hdr); print("-" * len(hdr))
 for bname, b6, dname, draw in ARCH:
     raw = dense_lsd(dname, FULL / draw)
-    for tag, gmax, ckpt, satlab in [("±6(orig)", 6.0, FULL / b6, "|g|>5.8"),
+    for tag, gmax, ckpt, satlab in [("±6(orig)", 6.0, SAVE / f"{bname}_g6.pt", "|g|>5.8"),
                                      ("±12(new)", 12.0, SAVE / f"{bname}_g12.pt", "|g|>11.8")]:
         if not Path(ckpt).exists():
             print(f"  [{bname} {tag}] ckpt 없음 — 스킵 ({ckpt})"); continue

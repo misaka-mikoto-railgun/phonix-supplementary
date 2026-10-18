@@ -40,7 +40,7 @@ import train_full as TF
 from model import DualObjectiveAdaptivePEQ
 from dataset_generator_v4_tracklevel import PEQDataset
 from run_gain_freq_ablation import (
-    CONFIGS, SEEDS_DEFAULT, DEFAULT_DATA, BASELINE_CKPT, HERE,
+    CONFIGS, SEEDS_DEFAULT, DEFAULT_DATA, HERE,
     build_model, cname, FIXED_GAIN_REF, FIXED_FC_REF,
 )
 
@@ -58,7 +58,7 @@ def collect_gain_fc(name, model, ds, device, batch_size=512):
 
 
 def _ckpt_path(cfg, seed, save_dir):
-    return BASELINE_CKPT if cfg == "g6_f16k" else (save_dir / f"{cname(cfg, seed)}.pt")
+    return save_dir / f"{cname(cfg, seed)}.pt"
 
 
 def main():

@@ -295,9 +295,6 @@ def main():
     # ── 학습 루프 (config × seed) ────────────────────────────────────────────
     if not args.eval_only:
         for c in configs:
-            if V == "A0" and c == "g6_f16k":
-                print(f"\n[{c}] baseline — 원본 A0_Proposed.pt 재사용, 재학습 생략")
-                continue
             for seed in args.seeds:
                 name = cname(c, seed, V)
                 ckpt_path = save_dir / f"{name}.pt"
@@ -317,10 +314,7 @@ def main():
     for c in configs:
         for seed in args.seeds:
             name = cname(c, seed, V)
-            if V == "A0" and c == "g6_f16k":
-                ckpt_path = BASELINE_CKPT          # 원본 비교군
-            else:
-                ckpt_path = save_dir / f"{name}.pt"
+            ckpt_path = save_dir / f"{name}.pt"
             if not Path(ckpt_path).exists():
                 # Skipping silently would leave the seed aggregate short without
                 # anything downstream noticing, so it has to be asked for.

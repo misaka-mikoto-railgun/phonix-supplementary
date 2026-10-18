@@ -2,7 +2,7 @@
 AC Fitting  --  Option A: Per-Sample Scipy Optimization
 ========================================================
 AC 모델의 128-bin dense output → 7-band biquad 로 per-sample fitting.
-A0_Proposed 와 동일한 Gaussian PEQ 근사를 사용하므로 직접 비교 가능.
+A0_Proposed 와 동일한 exact RBJ biquad 응답(LPPPPPH)을 사용하므로 직접 비교 가능.
 
 결과 해석:
   AC2_raw LSD       : AC2 원본 dense output vs ground truth
@@ -41,29 +41,23 @@ OMEGA            = (2 * np.pi * TARGET_FREQS / SR).astype(np.float64)
 
 
 # ──────────────────────────────────────────────────────────
-# Gaussian PEQ 근사 (A0_Proposed 와 동일 공식)
+# PEQ 응답 (A0_Proposed 와 동일: exact RBJ biquad, LPPPPPH)
 # ──────────────────────────────────────────────────────────
+
+# ── exact RBJ biquad response (replaces the Gaussian surrogate) ──────────────
+from exact_peq_np import make_raw_param_renderer
+
+SECTION_TYPES = "LPPPPPH"   # same head as A0: 1 low shelf + 5 peaking + 1 high shelf
+_render = make_raw_param_renderer(N_FILTERS, FC_MIN, FC_MAX, lambda: GAIN_MAX,
+                                  Q_MIN, Q_MAX, omega=OMEGA, sr=SR, section_types=SECTION_TYPES)
 
 def gaussian_peq_response(params: np.ndarray) -> np.ndarray:
     """
     params: (N_FILTERS * 3,) = [fc1, gain1, q1, ...]  (raw, unbounded)
-    반환: (128,) dB  (bounded params 적용 후)
+    반환: (128,) dB  (bounded params 적용 후) — exact RBJ sections (LPPPPPH).
+    (이름은 호환을 위해 유지; 더 이상 Gaussian 근사가 아님.)
     """
-    resp = np.zeros(128, dtype=np.float64)
-    for i in range(N_FILTERS):
-        fc_raw   = params[3*i]
-        gain_raw = params[3*i + 1]
-        q_raw    = params[3*i + 2]
-        # sigmoid/tanh 경계 (A0 학습 시 동일)
-        fc   = FC_MIN   + _sigmoid(fc_raw)   * (FC_MAX - FC_MIN)
-        gain = _tanh(gain_raw) * GAIN_MAX
-        q    = Q_MIN    + _sigmoid(q_raw)    * (Q_MAX  - Q_MIN)
-        omega_0 = 2 * np.pi * fc / SR
-        bw      = omega_0 / (q + 1e-9)
-        delta   = np.abs(OMEGA - omega_0)
-        w       = np.exp(-0.5 * (delta / (bw + 1e-9))**2)
-        resp   += gain * w
-    return resp
+    return _render(params)
 
 
 def _sigmoid(x):
@@ -75,7 +69,7 @@ def _tanh(x):
 
 def fit_biquad(target_db: np.ndarray, n_restarts: int = 3) -> tuple[np.ndarray, float]:
     """
-    target_db (128,) 에 대해 7-band Gaussian PEQ 파라미터 fitting.
+    target_db (128,) 에 대해 7-band (exact biquad) PEQ 파라미터 fitting.
     반환: (best_params, best_mse)
     """
     best_loss = np.inf
@@ -174,7 +168,7 @@ def main():
 
     print(f"AC Fitting Option A  --  {args.model}")
     print(f"N={N} samples, n_restarts={args.n_restarts}")
-    print(f"Fitting {N_FILTERS}-band Gaussian PEQ per sample (same formula as A0_Proposed)")
+    print(f"Fitting {N_FILTERS}-band exact-biquad PEQ per sample (same response as A0_Proposed)")
     print()
 
     # ── Per-sample fitting ──────────────────────────────────

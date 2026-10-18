@@ -75,7 +75,8 @@ ft = torch.tensor(FC[idx:idx+1], device=device); gt = torch.tensor(G[idx:idx+1],
 bands = []
 with torch.no_grad():
     for k in range(FC.shape[1]):
-        r = model.peq_response(ft[:, k:k+1], gt[:, k:k+1], qt[:, k:k+1])  # (1,128)
+        r = model.peq_response(ft[:, k:k+1], gt[:, k:k+1], qt[:, k:k+1],
+                               section_types=model.peq_response.section_types[k])  # (1,128)
         bands.append(r.cpu().numpy()[0].tolist())
 
 # ── 저장 ─────────────────────────────────────────────────────────────────────
