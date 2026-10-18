@@ -5,7 +5,7 @@ metric (논문 파이프라인 일치):
   CosSim = mean_sample cos(heard, pref_target),  heard = pred - room_target
 그래프 경계 출력(room_corr/fc/gain/q)에서 fp32 모델과 '동일 post-proc'로 pred 재구성:
   A0   : pred = room_corr + peq_response(fc,gain,q)
-  AC*  : pred = room_corr + pref_curve(band) + peq_response(fc,gain,q)
+  AC*  : pred = room_corr + peq_response(fc,gain,q)   (v1.2: pref_curve is an input only)
   E3/E4: pred = response(fc,gain,q)
 fp32 pred 은 PyTorch forward out['pred_response_db'] (동일 수식).
 """
@@ -116,8 +116,7 @@ for name, build, ckpt, onnx_name, kind, cond in SPECS:
             pred_i8 = np.stack(rc8) + peq
         elif kind == "ac":
             peq = m.peq_response(fcT, gT, qT).numpy()
-            prefc = m._pref_curve(band).numpy()
-            pred_i8 = np.stack(rc8) + prefc + peq
+            pred_i8 = np.stack(rc8) + peq
         else:  # e
             pred_i8 = m.response(fcT, gT, qT).numpy()
     lsd_i8, cos_i8 = metrics(pred_i8)

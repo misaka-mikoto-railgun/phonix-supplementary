@@ -2,7 +2,7 @@
 table4_paired.py — Table 4 (Paired Statistical Diagnostics), ±12·train_full 기준
 ================================================================================
 추정 없음. test_synth. A0=gain±12 3-seed; A2=3-seed(같은 seed 짝); 나머지 single-seed.
-A1 = train_full 경로(features_clean) = 2.713 (Table 2/3 와 동일).
+A1 = train_full 경로(features_clean) = 2.704 (Table 2/3 와 동일).
 metric: lsd vs dual_target; dmr 은 heard=pred-room_target vs pref_target.
 
 산출(LSD & DMR 각각):
@@ -104,7 +104,7 @@ for lab, base, ss in TARGETS:
 # ── 출력 ─────────────────────────────────────────────────────────────────────
 print("="*118)
 print("Table 4 — A0 vs each model, paired (test_synth, ±12·train_full).  ‡=Wilcoxon p<0.001")
-print("  SAMPLE-level (N=3000), 3-seed mean±std.  A1=features_clean(2.713) pipeline.")
+print("  SAMPLE-level (N=3000), 3-seed mean±std.  A1=features_clean(2.704) pipeline.")
 print("="*118)
 h=f"{'A0 vs':6}{'LSD Δ':>14}{'LSD d_z':>14}{'LSD Win%':>13}{'p':>9}{'  ':2}{'DMR Δ':>12}{'DMR d_z':>12}{'DMR Win%':>12}"
 print(h); print("-"*len(h))
@@ -133,4 +133,6 @@ with open(OUT / "table4_paired_synth.csv","w",newline="",encoding="utf-8-sig") a
         w.writerow([r["tgt"],"track","LSD",f"{r['t_lsd_d'][0]:.4f}",f"{r['t_lsd_d'][1]:.4f}",f"{r['t_lsd_dz'][0]:.3f}",f"{r['t_lsd_dz'][1]:.3f}",f"{r['t_lsd_win'][0]*100:.1f}","",r["ng"]])
         w.writerow([r["tgt"],"track","DMR",f"{r['t_dmr_d'][0]:.4f}",f"{r['t_dmr_d'][1]:.4f}",f"{r['t_dmr_dz'][0]:.3f}",f"{r['t_dmr_dz'][1]:.3f}","","",r["ng"]])
 print(f"\n저장: {OUT / 'table4_paired_synth.csv'}")
-print("주의: A0 vs A2 sample-level은 ‡(p<0.001)이나 effect 미미(d_z≈-0.19, Win 58%) + seed-level n.s.(§4.2). 본문 병기 필수.")
+a2 = next(r for r in rows if r["tgt"] == "A2")
+print(f"주의: A0 vs A2 sample-level은 p={a2['s_lsd_p']:.0e}이나 effect 미미"
+      f"(d_z≈{a2['s_lsd_dz'][0]:+.2f}, Win {a2['s_lsd_win'][0]*100:.0f}%) + seed-level n.s.(§4.2). 본문 병기 필수.")

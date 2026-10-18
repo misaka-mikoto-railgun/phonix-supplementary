@@ -4,7 +4,7 @@ table7_perceptual.py — Table 7 (tab:perceptual), ±12·train_full 기준
 컬럼: LSD | ERB-LSD | 1/3-oct LSD | |Δ| vs A0 | %<JND(0.5dB)
 추정 없음. test_synth. 메트릭 = perceptual_proxy.py (lsd_std/lsd_erb_fn/lsd_third_oct).
 |Δ|/%<JND 정의 = perceptual_proxy.build_jnd_table: per-sample |LSD_model − LSD_A0| (lsd_std).
-A0/A2 = gain±12 3-seed; A1 = train_full(2.713). A0 기준 = 3-seed, seed pairing = Table 4 와 동일.
+A0/A2 = gain±12 3-seed; A1 = train_full(2.704). A0 기준 = 3-seed, seed pairing = Table 4 와 동일.
 """
 import numpy as np, torch, csv
 import train_full as TF
@@ -98,7 +98,7 @@ for disp,name,ck in BIQ:
     rows.append((disp, L.mean(),E.mean(),O.mean(), d,p))
 
 print("="*96)
-print("Table 7 (Perceptual proxy, test_synth, ±12·train_full). |Δ|/%<JND vs A0(1.095, 3-seed, seed-avg).")
+print(f"Table 7 (Perceptual proxy, test_synth, ±12·train_full). |Δ|/%<JND vs A0({float(np.mean(a0L)):.3f}, 3-seed, seed-avg).")
 print("="*96)
 h=f"{'Model':20}{'LSD':>8}{'ERB-LSD':>9}{'1/3-oct':>9}{'|Δ|vsA0':>9}{'%<JND':>8}"
 print(h); print("-"*len(h))

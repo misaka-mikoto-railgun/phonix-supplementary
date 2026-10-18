@@ -7,3 +7,22 @@ venv/
 # track-level intermediate prediction dumps (~7.5 MB each, not part of the release)
 *_preds.npz
 _tl_probe*/
+
+# checkpoints are not redistributed; checkpoints_manifest.json records their sha256
+*.pt
+code/checkpoints/
+code/checkpoints_gauss/
+code/checkpoints_init/
+code/ckpt_eval/
+
+# training scratch and default local output directory
+code/exp_*/
+code/results/
+
+# rerun trees: only <run>/results/ is kept as the numeric reference; tables and
+# figures reach the repository through run_all_refresh -Publish
+code/reruns/*/logs/
+code/reruns/*/paper_outputs/
+code/reruns/*/track_level/
+code/reruns/*/onnx/
+*.npy

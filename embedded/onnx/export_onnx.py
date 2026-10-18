@@ -511,6 +511,7 @@ def main():
             wmod, args, str(out_path),
             input_names=in_names, output_names=out_names,
             opset_version=OPSET, dynamic_axes=None, do_constant_folding=True,
+            dynamo=False,   # legacy TorchScript exporter, as for the shipped graphs (torch>=2.9 defaults to dynamo)
         )
         # ── ORT BASIC graph 최적화(상수폴딩) → 최종 산출물.
         #    표준 ai.onnx 도메인만 사용(com.microsoft 도입 안 함) → Cube.AI 호환 유지.

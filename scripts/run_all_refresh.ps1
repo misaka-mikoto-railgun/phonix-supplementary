@@ -1,4 +1,4 @@
-# Regenerate every table, figure and track-level export the paper draws on.
+﻿# Regenerate every table, figure and track-level export the paper draws on.
 #
 # Windows equivalent of run_all_refresh.sh.
 #
@@ -52,9 +52,13 @@ $modelsAll = "A0_Proposed,A1_NoRoomInput,A2_withPrefLoss,A3_NoPrefInput,E1,E2,E3
 $compareCandidates = "A1_NoRoomInput,A2_withPrefLoss,A3_NoPrefInput,E1,E2,E3,E4,E5,E6,AC1,AC2,AC3"
 
 function Step {
-    param([string]$Name, [string[]]$Args)
+    # NB: not $Args -- that is a PowerShell automatic variable and is empty inside the function
+    param([string]$Name, [string[]]$PyArgs)
     Write-Host "`n=== $Name ==="
-    & python @Args 2>&1 | Tee-Object -FilePath (Join-Path $logDir "$Name.log")
+    # native stderr must not abort the step under "Stop" before the exit code is checked
+    $eap = $ErrorActionPreference; $ErrorActionPreference = "Continue"
+    & python -u @PyArgs 2>&1 | ForEach-Object { "$_" } | Tee-Object -FilePath (Join-Path $logDir "$Name.log")
+    $ErrorActionPreference = $eap
     if ($LASTEXITCODE -ne 0) { throw "$Name failed with exit code $LASTEXITCODE" }
 }
 
@@ -148,12 +152,21 @@ if ($Publish) {
     Copy-Item (Join-Path $paperOut "tables\T[2-5]_*.csv") $tabDst -Force
     Copy-Item (Join-Path $paperOut "figures\F[1-6]_*.png") $figDst -Force
     Copy-Item (Join-Path $paperOut "figures\F[1-6]_*.pdf") $figDst -Force
-    Copy-Item (Join-Path $paperOut "figuresig_*.png") $figDst -Force -ErrorAction SilentlyContinue
-    Copy-Item (Join-Path $paperOut "figuresig_*.pdf") $figDst -Force -ErrorAction SilentlyContinue
+    Copy-Item (Join-Path $paperOut "figures\fig_*.png") $figDst -Force -ErrorAction SilentlyContinue
+    Copy-Item (Join-Path $paperOut "figures\fig_*.pdf") $figDst -Force -ErrorAction SilentlyContinue
     # param_dist writes its histograms next to its JSON rather than into paper_outputs
     Copy-Item (Join-Path $results "param_dist_*.png") $figDst -Force
     Copy-Item (Join-Path $results "param_dist_*.pdf") $figDst -Force
     Copy-Item (Join-Path $results "*.json") $jsonDst -Force
+    # table6_biquad.py reads these from results_json\ when run without --results_dir
+    Copy-Item (Join-Path $results "ac_fitting_*.csv") $jsonDst -Force
+    # track-level paired comparisons (the *_preds.npz dumps stay local)
+    foreach ($tag in @("test_synth", "test_real", "paired_mode")) {
+        $src = Join-Path $trackRoot "${tag}_compare"
+        $dst = Join-Path $repoRoot "results\track_level\${tag}_compare"
+        New-Item -ItemType Directory -Force -Path $dst | Out-Null
+        Copy-Item (Join-Path $src "*.json"), (Join-Path $src "*.csv") $dst -Force
+    }
     Write-Host "  copied into tables\ figures\ results_json\"
 }
 

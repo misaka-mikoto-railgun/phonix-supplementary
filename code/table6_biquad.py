@@ -17,13 +17,12 @@ table6_biquad.py — Table 4 (tab:ac_fitting) 조립
       dense AC2 (raw) 기준행.
   results_json/ac_fitting_A_g12.csv        ← ac_fitting_A.py (--gain_max 12.0)
   results_json/ac_fitting_A_g6_orig.csv    ← ac_fitting_A.py (--gain_max 6.0)
-  results_json/ac_fitting_D_naive7pt.csv   ← ac_fitting_C.py (Option D)
+  results_json/ac_fitting_D_naive7pt.csv   ← ac_fitting_D.py (Option D)
 
-Option D 행이 개정 이전 산출물인 이유:
-  naive 7-pt 는 목표 응답을 일곱 지점에서 그대로 표본화할 뿐 학습된 모델을 쓰지
-  않는다. Stage-B 의 per-section gain bound 가 관여하지 않으므로 ±6 → ±12 완화에
-  영향을 받지 않고, 따라서 ±12 로 재산출하지 않았다. Option A 의 ±6 행도 같은
-  이유가 아니라 대조군으로서 의도적으로 개정 이전 값을 싣는다(라벨 'orig').
+Option A/C/D 는 모두 exact RBJ biquad 렌더러(exact_peq_response / exact_peq_np)로
+산출된다. naive 7-pt(Option D)는 학습된 모델을 쓰지 않으므로 gain bound 와 무관하다.
+Option A 의 ±6 행만은 대조군으로서 개정 이전 값을 그대로 싣는다(라벨 'orig';
+Gaussian surrogate 시절 산출물이며 원고 Table 4 에는 인쇄되지 않는다).
 
   python table6_biquad.py
   python table6_biquad.py --results_dir /path/to/results --out_dir /path/to/results
@@ -122,7 +121,7 @@ rows.append(["Option A SciPy fit ±6 (AC2, orig)", f3(num(a6["LSD mean"])), "—
              fdelta(num(optA6["Representation penalty"]["LSD mean"]))])
 
 # Option D — naive 7-pt 표본화 (학습 모델 미사용 → gain bound 무관)
-d = optD["AC2_GRU 7-pt sampled (Q=1.41)"]
+d = next(v for k, v in optD.items() if k.startswith("AC2_GRU 7-pt sampled"))
 rows.append(["Option D naive 7-pt (AC2)", f3(num(d["LSD mean"])), fci(*ci_of(d["95% CI"])),
              fdelta(num(d["LSD mean"]) - A0_MEAN), "", ""])
 
@@ -153,5 +152,5 @@ for r in rows:
     print("".join(str(c).ljust(x) for c, x in zip(r, width)))
 print(f"\nA0 기준 = {A0_MEAN:.4f}, CI {a0['ci'][0]:.4f}..{a0['ci'][1]:.4f} "
       f"(N={a0['n']}, n_boot={a0['n_boot']}, seed={a0['bootstrap_seed']})")
-print("% < JND 출처 = table7_perceptual.csv / Option D = 개정 이전 산출물(gain bound 무관)")
+print("% < JND 출처 = table7_perceptual.csv / Option D = exact biquad, 학습 모델 미사용(gain bound 무관)")
 print(f"저장: {OUT}")

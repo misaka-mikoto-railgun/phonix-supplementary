@@ -120,6 +120,13 @@ if [ "$PUBLISH" = "1" ]; then
     # param_dist writes its histograms next to its JSON rather than into paper_outputs/
     cp "$RESULTS"/param_dist_*.png "$RESULTS"/param_dist_*.pdf "$REPO_ROOT/figures/"
     cp "$RESULTS"/*.json                 "$REPO_ROOT/results_json/"
+    # table6_biquad.py reads these from results_json/ when run without --results_dir
+    cp "$RESULTS"/ac_fitting_*.csv       "$REPO_ROOT/results_json/"
+    # track-level paired comparisons (the *_preds.npz dumps stay local)
+    for tag in test_synth test_real paired_mode; do
+        mkdir -p "$REPO_ROOT/results/track_level/${tag}_compare"
+        cp "$TRACK_ROOT/${tag}_compare"/*.json "$TRACK_ROOT/${tag}_compare"/*.csv            "$REPO_ROOT/results/track_level/${tag}_compare/"
+    done
     echo "  copied into tables/ figures/ results_json/"
 fi
 
