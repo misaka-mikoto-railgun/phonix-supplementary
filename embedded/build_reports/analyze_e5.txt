@@ -1,18 +1,18 @@
 ST Edge AI Core v2.2.0-20266 2adc00962
 Created date          : 2026-08-02 06:56:39
-Parameters            : analyze --target stm32f4 --name network -m G:/EQ_PHONIX/free-music-archive-small/data/revision_gain_freq/onnx_export/e5_sequential.onnx --compression none --verbosity 1 --workspace C:/Users/ayh07/AppData/Local/Temp/mxAI_workspace109733245473299912027589442205626653 --output C:/Users/ayh07/.stm32cubemx/network_output
+Parameters            : analyze --target stm32f4 --name network -m <onnx_export>/e5_sequential.onnx --compression none --verbosity 1 --workspace <USERPROFILE>/AppData/Local/Temp/mxAI_workspace109733245473299912027589442205626653 --output <USERPROFILE>/.stm32cubemx/network_output
 
 Exec/report summary (analyze)
 ----------------------------------------------------------------------------------------------------------------------
-model file         :   G:\EQ_PHONIX\free-music-archive-small\data\revision_gain_freq\onnx_export\e5_sequential.onnx   
+model file         :   <onnx_export>\e5_sequential.onnx   
 type               :   onnx                                                                                           
 c_name             :   network                                                                                        
 compression        :   none                                                                                           
 options            :   allocate-inputs, allocate-outputs                                                              
 optimization       :   balanced                                                                                       
 target/series      :   stm32f4                                                                                        
-workspace dir      :   C:\Users\ayh07\AppData\Local\Temp\mxAI_workspace109733245473299912027589442205626653           
-output dir         :   C:\Users\ayh07\.stm32cubemx\network_output                                                     
+workspace dir      :   <USERPROFILE>\AppData\Local\Temp\mxAI_workspace109733245473299912027589442205626653           
+output dir         :   <USERPROFILE>\.stm32cubemx\network_output                                                     
 model_fmt          :   float                                                                                          
 model_name         :   e5_sequential                                                                                  
 model_hash         :   0x3d0c39a14d3d7a5245693d97fb9da386                                                             

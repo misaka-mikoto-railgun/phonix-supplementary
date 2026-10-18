@@ -1,18 +1,18 @@
 ST Edge AI Core v2.2.0-20266 2adc00962
 Created date          : 2026-08-01 21:53:54
-Parameters            : analyze --target stm32f4 --name network -m G:/EQ_PHONIX/free-music-archive-small/data/revision_gain_freq/onnx_export/a0.onnx --compression none --verbosity 1 --workspace C:/Users/ayh07/AppData/Local/Temp/mxAI_workspace10647550025828003466846451512087703 --output C:/Users/ayh07/.stm32cubemx/network_output
+Parameters            : analyze --target stm32f4 --name network -m <onnx_export>/a0.onnx --compression none --verbosity 1 --workspace <USERPROFILE>/AppData/Local/Temp/mxAI_workspace10647550025828003466846451512087703 --output <USERPROFILE>/.stm32cubemx/network_output
 
 Exec/report summary (analyze)
 -------------------------------------------------------------------------------------------------------------
-model file         :   G:\EQ_PHONIX\free-music-archive-small\data\revision_gain_freq\onnx_export\a0.onnx     
+model file         :   <onnx_export>\a0.onnx     
 type               :   onnx                                                                                  
 c_name             :   network                                                                               
 compression        :   none                                                                                  
 options            :   allocate-inputs, allocate-outputs                                                     
 optimization       :   balanced                                                                              
 target/series      :   stm32f4                                                                               
-workspace dir      :   C:\Users\ayh07\AppData\Local\Temp\mxAI_workspace10647550025828003466846451512087703   
-output dir         :   C:\Users\ayh07\.stm32cubemx\network_output                                            
+workspace dir      :   <USERPROFILE>\AppData\Local\Temp\mxAI_workspace10647550025828003466846451512087703   
+output dir         :   <USERPROFILE>\.stm32cubemx\network_output                                            
 model_fmt          :   float                                                                                 
 model_name         :   a0                                                                                    
 model_hash         :   0x996b83385d42e59e5ac0ba094f17b955                                                    

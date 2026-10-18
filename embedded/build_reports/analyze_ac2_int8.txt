@@ -1,18 +1,18 @@
 ST Edge AI Core v2.2.0-20266 2adc00962
 Created date          : 2026-08-02 06:54:08
-Parameters            : analyze --target stm32f4 --name network -m G:/EQ_PHONIX/free-music-archive-small/data/revision_gain_freq/onnx_export/ac2_gru_biquad_int8.onnx --compression none --verbosity 1 --workspace C:/Users/ayh07/AppData/Local/Temp/mxAI_workspace109715640805760013060748951065398336 --output C:/Users/ayh07/.stm32cubemx/network_output
+Parameters            : analyze --target stm32f4 --name network -m <onnx_export>/ac2_gru_biquad_int8.onnx --compression none --verbosity 1 --workspace <USERPROFILE>/AppData/Local/Temp/mxAI_workspace109715640805760013060748951065398336 --output <USERPROFILE>/.stm32cubemx/network_output
 
 Exec/report summary (analyze)
 ----------------------------------------------------------------------------------------------------------------------------
-model file         :   G:\EQ_PHONIX\free-music-archive-small\data\revision_gain_freq\onnx_export\ac2_gru_biquad_int8.onnx   
+model file         :   <onnx_export>\ac2_gru_biquad_int8.onnx   
 type               :   onnx                                                                                                 
 c_name             :   network                                                                                              
 compression        :   none                                                                                                 
 options            :   allocate-inputs, allocate-outputs                                                                    
 optimization       :   balanced                                                                                             
 target/series      :   stm32f4                                                                                              
-workspace dir      :   C:\Users\ayh07\AppData\Local\Temp\mxAI_workspace109715640805760013060748951065398336                 
-output dir         :   C:\Users\ayh07\.stm32cubemx\network_output                                                           
+workspace dir      :   <USERPROFILE>\AppData\Local\Temp\mxAI_workspace109715640805760013060748951065398336                 
+output dir         :   <USERPROFILE>\.stm32cubemx\network_output                                                           
 model_fmt          :   ss/sa per channel                                                                                    
 model_name         :   ac2_gru_biquad_int8                                                                                  
 model_hash         :   0xf2db7e903b87cdb452de9c879dbda60b                                                                   
