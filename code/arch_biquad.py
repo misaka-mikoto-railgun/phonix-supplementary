@@ -2,10 +2,12 @@
 arch_biquad.py — Biquad-constrained AC variants (AC1/AC2/AC3)
 =============================================================
 _ACBase 의 Stage B (dense 128-bin pref_res_head) 를
-7-band Gaussian PEQ head 로 교체한 모델 정의.
+7-band exact RBJ biquad head (LPPPPPH: low shelf + 5 peaking + high shelf) 로
+교체한 모델 정의.
 
 Stage A: room correction (dense, free) — 원본과 동일
-Stage B: DifferentiablePEQResponse 로 제약된 biquad pref residual
+Stage B: ExactPEQResponse 로 제약된 biquad pref residual
+         (출력 = room_corr + pref_res; pref_curve 는 입력으로만 쓰고 출력에 더하지 않는다)
 
 사용처
 ------
@@ -19,7 +21,7 @@ import torch.nn as nn
 
 from arch_variants import _ACBase, _ConformerBlock
 from model import AttentionPooling
-from baselines import DifferentiablePEQResponse
+from exact_peq_response import ExactPEQResponse
 
 N_FILTERS = 7
 FC_MIN, FC_MAX = 80.0, 16000.0
@@ -57,8 +59,9 @@ class _ACBiquadBase(_ACBase):
             nn.Linear(pref_in, hd * 2), nn.GELU(), nn.Dropout(0.1),
             nn.Linear(hd * 2, hd), nn.GELU(), nn.Linear(hd, n_filters * 3),
         )
-        self.peq_response = DifferentiablePEQResponse(
+        self.peq_response = ExactPEQResponse(
             sample_rate=self.sample_rate, n_freqs=nf,
+            section_types="LPPPPPH",
         )
         self._n_filters = n_filters
 
@@ -89,7 +92,7 @@ class _ACBiquadBase(_ACBase):
 
         pref_res = self.peq_response(fc, gain, q)          # (B, n_freqs)
 
-        pred = room_corr + pref_curve + pref_res
+        pred = room_corr + pref_res
 
         return {
             "pred_response_db":   pred,

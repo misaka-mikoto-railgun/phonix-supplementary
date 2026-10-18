@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from baselines import DifferentiablePEQResponse
+from exact_peq_response import ExactPEQResponse
 import math
 
 from frequency_grid import make_frequency_grid_torch
@@ -114,14 +114,10 @@ class DualObjectiveAdaptivePEQ(nn.Module):
             nn.GELU(),
             nn.Linear(hidden_dim, n_peq_filters * 3)  # fc, gain, Q
         )
-        self.peq_response = DifferentiablePEQResponse(
-            sample_rate=sample_rate,
-            n_freqs=n_freqs,
-            f_min=f_min,
-            f_max=f_max,
-            freq_spacing=freq_spacing,
-        )
-
+        # Exact RBJ biquad cascade: section 0 = low shelf, 1-5 = peaking, 6 = high shelf.
+        self.peq_response = ExactPEQResponse(sample_rate=sample_rate, n_freqs=n_freqs,
+                                             f_min=f_min, f_max=f_max, freq_spacing=freq_spacing,
+                                             section_types="LPPPPPH")
         # Per-section gain and center-frequency bounds are constructor args.
         # Defaults match the published configuration: gain ±12 dB,
         # f_c in [80, 16000] Hz. fc_max is the PEQ center-frequency upper

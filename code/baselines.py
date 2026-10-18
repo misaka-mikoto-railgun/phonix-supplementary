@@ -15,6 +15,7 @@ import torch.nn.functional as F
 import math
 
 from frequency_grid import make_frequency_grid_torch
+from exact_peq_response import ExactPEQResponse
 
 
 # ── 모드 프로파일 (확대 ±8dB) ──────────────────
@@ -47,40 +48,10 @@ def build_mode_response_tensor(mode_id, freqs):
 
 # ── PEQ Response (E3/E4용) ──────────────────
 
-class DifferentiablePEQResponse(nn.Module):
-    """Biquad peaking EQ의 differentiable Gaussian 근사"""
-    def __init__(
-        self,
-        sample_rate=48000,
-        n_freqs=128,
-        f_min=20.0,
-        f_max=24000.0,
-        freq_spacing="log",
-    ):
-        super().__init__()
-        if f_max is None:
-            f_max = sample_rate / 2.0
-        self.register_buffer(
-            "freqs",
-            make_frequency_grid_torch(
-                n_freqs=n_freqs,
-                f_min=f_min,
-                f_max=f_max,
-                spacing=freq_spacing,
-            ),
-        )
-        self.sample_rate = sample_rate
-
-    def forward(self, fc, gain, q):
-        B, K = fc.shape
-        F_ = self.freqs.shape[0]
-        freqs = self.freqs.view(1, 1, F_)
-        fc_, gain_, q_ = fc.view(B,K,1), gain.view(B,K,1), q.view(B,K,1)
-        omega_0 = 2*math.pi*fc_/self.sample_rate
-        bw = omega_0 / q_
-        delta = (2*math.pi*freqs/self.sample_rate - omega_0).abs()
-        w = torch.exp(-0.5*(delta/(bw+1e-6))**2)
-        return (gain_ * w).sum(dim=1)
+class DifferentiablePEQResponse(ExactPEQResponse):
+    """Exact RBJ peaking-biquad magnitude response (E3/E4/E5).
+    (이름은 호환을 위해 유지 — 더 이상 Gaussian 근사가 아님. 기본 section_types=None → 전부 peaking.)"""
+    pass
 
 
 # ── E1. No Processing ──────────────────
