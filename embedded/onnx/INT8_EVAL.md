@@ -7,6 +7,30 @@ test split, with the same metrics and the same post-processing.
 - **CosSim** — heard response (`pred − room_target`) against `pref_target`. Higher is better.
 - `pred` is reconstructed from the graph boundary outputs (`room_corr`, `fc`, `gain`, `q`) with the same expression the FP32 path uses.
 
+### v1.2 (exact-biquad checkpoints)
+
+Graphs re-exported from the v1.2 checkpoints with `export_onnx.py`, calibrated
+with `build_calib.py`, quantised with `quantize_ptq.py` and evaluated with
+`eval_int8.py`.
+
+| variant | fp32 LSD | int8 LSD | ΔLSD | ΔLSD % | fp32 cos | int8 cos | Δcos |
+|---|---|---|---|---|---|---|---|
+| A0 | 0.9235 | 0.9733 | +0.0499 | +5.4 % | 0.9821 | 0.9806 | −0.0015 |
+| AC2 (GRU) | 0.9370 | 0.9859 | +0.0489 | +5.2 % | 0.9810 | 0.9795 | −0.0016 |
+| AC3 (Conformer) | 0.8994 | 0.9518 | +0.0524 | +5.8 % | 0.9815 | 0.9801 | −0.0014 |
+| E3 (Nercessian) | 5.9911 | 5.9909 | −0.0002 | −0.0 % | 0.0031 | 0.0029 | −0.0001 |
+| E4 (Pepe) | 5.8074 | 5.8104 | +0.0029 | +0.1 % | 0.0143 | 0.0149 | +0.0005 |
+
+The re-exported graphs have the same operators, initializer sizes and
+inputs/outputs as the ones in this directory, so only the weights differ.
+
+### v1.1 (the graphs in this directory)
+
+The `.onnx` files shipped here are the v1.1 exports. They are the files the ST
+Edge AI Core reports in `../build_reports/` were produced from (each report's
+`model_hash` is the file's MD5) and that the latency log measures, so they are
+kept as the measured artefacts. Their INT8 cost, against the v1.1 checkpoints:
+
 | variant | fp32 LSD | int8 LSD | ΔLSD | ΔLSD % | fp32 cos | int8 cos | Δcos |
 |---|---|---|---|---|---|---|---|
 | A0 | 1.0279 | 1.1128 | +0.0850 | +8.3 % | 0.9772 | 0.9737 | −0.0035 |
@@ -15,13 +39,12 @@ test split, with the same metrics and the same post-processing.
 | E3 (Nercessian) | 5.9641 | 5.9657 | +0.0016 | +0.0 % | 0.0108 | 0.0104 | −0.0004 |
 | E4 (Pepe) | 5.8086 | 5.8085 | −0.0001 | −0.0 % | 0.0319 | 0.0325 | +0.0006 |
 
-## Cross-check of the FP32 baseline against the reported figures
+## Cross-check of the FP32 baseline against the reported figures (v1.2)
 
-- A0: 1.028 here is the single seed-7 checkpoint on test_synth; the reported
-  three-seed figure is 1.095 ± 0.142 dB (mean ± sample standard deviation over
-  seeds 42/123/7), validation 1.43.
-- E3 / E4: 5.96 / 5.81 on test, against 5.94 / 5.78 reported on validation.
-- AC2 / AC3 biquad at ±12 dB: 1.02 / 1.01, against ≈1.01 from
+- A0: 0.9235 is the single seed-7 checkpoint on test_synth (`tables/seed_results.csv`);
+  the reported three-seed figure is 0.907 ± 0.015 dB.
+- E3 / E4: 5.991 / 5.807, the Table 1 values.
+- AC2 / AC3 biquad at ±12 dB: 0.937 / 0.899, the Option C values from
   `ac_biquad_table.py`.
 
 The FP32 path therefore agrees with the reported baselines, so each Δ above is
@@ -29,16 +52,13 @@ the quantisation effect alone, measured inside one pipeline.
 
 ## Reading the numbers
 
-- **A0** loses the most in relative terms (+8.3 %, +0.085 dB), but at an absolute
-  LSD of 1.11 it remains far ahead of every baseline, and −0.0035 in cosine
-  similarity is negligible. Its dense room-correction head feeding the PEQ stage
-  makes it the most quantisation-sensitive of the variants.
-- **AC2 / AC3**: +2.9 to +3.8 % (+0.03 dB), cosine −0.0015. Effectively lossless.
+- **A0, AC2, AC3**: +5.2 to +5.8 % (about +0.05 dB LSD), cosine −0.0016 at most.
+  A0 under INT8 (0.973) remains ahead of every external baseline.
 - **E3 / E4**: no measurable change — at LSD ≈ 6 and cosine ≈ 0.01 these models
   are already far from the target, so quantisation has nothing left to degrade.
   The rows are reported for completeness rather than as evidence.
-- Overall: INT8 post-training quantisation costs 0.03–0.09 dB LSD and under
-  0.004 cosine on the proposed model and the main variants. Together with the
+- Overall: INT8 post-training quantisation costs about 0.05 dB LSD and under
+  0.002 cosine on the proposed model and the main variants. Together with the
   flash-fit result for the heavier variants under INT8, that is what the
   appendix draws on.
 
@@ -78,4 +98,8 @@ operation-type figures; the reports themselves are `analyze_*.txt` beside it.
 - INT8 graphs kept: `a0_int8`, `e3_nercessian_int8`, `e4_pepe_int8`,
   `ac2_gru_biquad_int8`, `ac3_conformer_biquad_int8`.
 - To reproduce: `python eval_int8.py` (per-sample onnxruntime execution against
-  the FP32 PyTorch model).
+  the FP32 PyTorch model). It needs the checkpoints, which are not
+  redistributed, and evaluates the INT8 graphs beside it; for the v1.2 table,
+  first run `export_onnx.py`, `build_calib.py` and
+  `quantize_ptq.py a0 e3_nercessian e4_pepe ac2_gru_biquad ac3_conformer_biquad`
+  against the v1.2 checkpoints.

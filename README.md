@@ -5,11 +5,30 @@ JAES engineering report on real-time adaptive parametric equalisation for joint
 room correction and tonal-shape reproduction.
 
 This release describes the system as reported: a two-stage model whose Stage-B
-parametric-EQ head outputs parameters for seven biquad sections, with a
-**per-section gain bound of ±12 dB** and centre frequencies in
-**[80, 16000] Hz**.
+parametric-EQ head outputs parameters for seven biquad sections (a low shelf,
+five peaking sections and a high shelf), with a **per-section gain bound of
+±12 dB** and centre frequencies in **[80, 16000] Hz**.
 
 > Manuscript details (ID, DOI) are filled in on acceptance.
+
+## Versions
+
+| tag | PEQ response used in training and evaluation | status |
+|---|---|---|
+| `jaes-supplementary-v1.1` | a Gaussian surrogate on a linear frequency axis, not the biquads the device runs | superseded |
+| `jaes-supplementary-v1.2` | exact RBJ (Audio-EQ-Cookbook) biquad magnitude, sections `LPPPPPH` | current |
+
+In v1.1, `baselines.DifferentiablePEQResponse` approximated each peaking section
+by a Gaussian, and the PEQ-head models (A0, A2, the Option C heads, and the
+E3/E4/E5 baselines) were optimised against that approximation, so their
+reported responses were not those of the deployed filters. v1.2 replaces it with
+`code/exact_peq_response.py` (closed-form cookbook magnitudes; agreement with the
+z-domain transfer functions below 1e-7 dB in float64), retrains every affected
+model, and regenerates every table and figure. A peaking-only exact head settled
+in different basins across seeds, so A0, A2 and the Option C heads use a low
+shelf and a high shelf as their outer sections. The conclusions are unchanged.
+`git diff jaes-supplementary-v1.1 jaes-supplementary-v1.2 -- tables results_json`
+shows every number that moved.
 
 ## What is and is not included
 
@@ -30,7 +49,10 @@ results_json/    raw metric outputs (per-seed summaries, paired/track statistics
 results/
   track_level/   per-track paired statistics for three evaluation splits
 docs/            loss_equations.md — the training loss, transcribed from the code
-embedded/
+code/reruns/exact/results/
+                 the v1.2 regeneration's raw outputs (what tables/ and results_json/
+                 were published from)
+embedded/        README.md — PEQ section types for the host-side coefficient code
   onnx/          ONNX exports (opset 13, FP32 + INT8) and the export/quantisation scripts
   cmsis_mfcc/    CMSIS-DSP MFCC front-end and its constant generator
   latency/       DWT benchmark harness and MEASUREMENT_LOG.md
@@ -81,21 +103,24 @@ assembles them, so it runs without a GPU, a dataset or a checkpoint:
 | `% < JND` | `tables/table7_perceptual.csv` (`table7_perceptual.py`) — the only place this quantity is computed |
 | `dense AC2 (raw)` | `tables/table2_revision_synth.csv`, the same figure as the AC2 row of Table 1 |
 | Option A, ±12 and ±6 | `results_json/ac_fitting_A_g12.csv`, `ac_fitting_A_g6_orig.csv` (`ac_fitting_A.py`) |
-| Option D | `results_json/ac_fitting_D_naive7pt.csv` (`ac_fitting_C.py`) |
+| Option D | `results_json/ac_fitting_D_naive7pt.csv` (`ac_fitting_D.py`) |
 | A0 reference row | `a0_reference` in `results_json/ac_biquad_table.json` |
 
-The A0 reference interval `[1.083, 1.107]` is the bootstrap (`n_boot=2000`,
+The A0 reference interval `[0.898, 0.916]` is the bootstrap (`n_boot=2000`,
 `seed=42`) over the per-sample LSD averaged across the three training seeds
-(N=3000). Pooling the three seeds into one N=9000 resample instead treats a seed
-as if it were a sample and narrows the interval to `[1.086, 1.104]`; that is not
-what the paper reports, and no table here carries it.
+(N=3000). Pooling the three seeds into one N=9000 resample instead would treat a
+seed as if it were a sample and narrow the interval; no table here carries that.
 
-**Option A ±6 and Option D come from the pre-revision run.** Option D samples the
-target response at seven points and never evaluates a trained model, so the
-Stage-B gain bound plays no part in it and there is nothing for the ±12 relaxation
-to change. The Option A ±6 row is the deliberate control against which the ±12
-refit is read, and is labelled `orig` for that reason. Everything else in the
-table was recomputed under the ±12 bound.
+**Option A ±6 is the one row not regenerated in v1.2.** It is the deliberate
+control against which the ±12 refit is read, is labelled `orig`, and still holds
+the v1.1 (Gaussian-surrogate) value; it does not appear in the manuscript's
+Table 4. Option D samples the target response at seven points and never
+evaluates a trained model, so the gain bound plays no part in it; it is
+rendered by `ac_fitting_D.py` with the same `LPPPPPH` sections as the A0 head
+(Q 1.41 for the peaking sections, 1/√2 for the shelves; the sampled value is a
+shelf's plateau gain). `--section_types PPPPPPP` gives the all-peaking variant
+(2.965), which is not in the table. Everything else in
+the table was recomputed with the exact response under the ±12 bound.
 
 `% < JND` compares `|LSD_model − LSD_A0|` against 0.5 dB with the ±12 A0 as the
 reference, so it is defined only for ±12 configurations. In
@@ -103,18 +128,14 @@ reference, so it is defined only for ±12 configurations. In
 are kept because their `gain_sat(self)%` and `gain>6%` columns are the evidence
 that the narrower bound was binding.
 
-Specific figures quoted in Section 3.2 come from
-`tables/T2_paired_stats_3seed.csv`: the `|d_z| = 1.5–4.4` range and the
-`78–100 %` win rates are the A1/A3/E3/E4 rows, and `about 0.23 dB lower LSD`
-is the **AC1–AC3** block (LSD deltas +0.242 / +0.235 / +0.225, mean 0.234, in
-favour of the dense variants). Note that the A2 row happens to have the same
-magnitude with the opposite sign (−0.234, in favour of A0); the two are easy to
-confuse.
+The paired figures of Section 3.2 come from `tables/T2_paired_stats_3seed.csv`:
+for the A1/A3/E3/E4 rows `|d_z|` spans 1.60–4.30 and the win rates 98.3–100 %;
+the **AC1–AC3** block gives LSD deltas +0.060 / +0.053 / +0.039 (mean 0.051) in
+favour of the dense variants; the A2 row is −0.035 (d_z −0.21), in favour of A0.
 
 The Section 3.3 comparison reads off the two A0 summaries directly. Their
-`g6_f16k` and `g12_f16k` entries give synthetic 1.4423 → 1.0950, real
-1.9412 → 1.7922, and therefore a domain gap of 0.4989 → 0.6972 — the
-1.442 → 1.095, 1.941 → 1.792 and 0.499 → 0.697 the paper quotes. The gap is a
+`g6_f16k` and `g12_f16k` entries give synthetic 1.1622 → 0.9072, real
+1.7662 → 1.5696, and therefore a domain gap of 0.6040 → 0.6624. The gap is a
 difference of two recorded means rather than a stored field, which is why no
 table carries it.
 
@@ -141,8 +162,8 @@ family — see the table mapping above.
 
 ## Seeds
 
-A0 and A2 were trained with three seeds (42, 123, 7); every other model retains
-its original single-seed (42) checkpoint. Headline numbers are the three-seed
+A0 and A2 were trained with three seeds (42, 123, 7); every other model has a
+single-seed (42) checkpoint. Headline numbers are the three-seed
 aggregate.
 
 **Track-level comparisons** use the seed-42 checkpoints for both A0 and A2 so that
@@ -150,16 +171,14 @@ every paired comparison is seed-matched with the single-seed candidates
 (AC1–AC3, E1–E6, A1, A3); pairing a multi-seed baseline against single-seed
 candidates would reintroduce the between-run variation that this aggregate is
 meant to control for. Seed 42 also matches the convention of the earlier ±6 dB
-files. Note that seed 42 is A0's best of the three revision seeds (0.999 vs. the
-3-seed mean of 1.095) and A2's best (1.031 vs. 1.329); at this matched seed the
-two are within 0.03 dB, consistent with the near-parity in mean accuracy reported
-in the manuscript. Headline figures use the 3-seed aggregate.
+files. Seed 42 is the best of the three seeds for both models: A0 scores 0.895
+(3-seed mean 0.907) and A2 0.941 (3-seed mean 0.942), so at this matched seed A0
+is 0.045 dB lower. Headline figures use the 3-seed aggregate.
 
 Uncertainty is reported as a 95 % bootstrap CI for single-seed rows and as
 ±1 seed standard deviation for the three-seed A0/A2 rows, matching the paper.
-The A0 confidence interval quoted in the paper's Table 4, [1.083, 1.107], is the
-bootstrap over the per-sample three-seed mean and is the one carried in
-`tables/table6_biquad.csv`.
+The A0 confidence interval in Table 4, [0.898, 0.916], is the bootstrap over the
+per-sample three-seed mean and is the one carried in `tables/table6_biquad.csv`.
 
 Each track-level JSON records the seed in a `baseline_seed` field. The sign
 convention is `mean_diff = candidate − baseline`, with A0 as the baseline.
@@ -182,13 +201,19 @@ compare against what is published here, diff that directory against `tables/`,
 the step between `code/results/` and the published directories, and it is part
 of the script rather than something to do by hand.
 
+`code/run_exact_pipeline.ps1` is the end-to-end v1.2 run: it trains whatever
+revision checkpoints are missing (A0/A2 three seeds, the A0 fc 20 kHz and ±6
+controls, the Option C heads), rebuilds the manifests and the evaluation
+staging, runs Options A/C/D, and then calls `run_all_refresh.ps1` with its
+output under `code/reruns/exact/`.
+
 Environment: the pinned versions in `requirements.txt` are the ones this was
 verified with — Python 3.13.5 on Windows 11, CUDA 12.8 on an RTX 3060 Ti. Every
 script falls back to CPU.
 
 `figures/fig_ac_fitting_AC2_GRU.*` is the one figure the script cannot rebuild
-from what is shipped: it plots per-sample arrays written by `ac_fitting_A.py` /
-`ac_fitting_C.py`, which are refit and retrain runs. Point `STAT_DIR` at their
+from what is shipped: it plots per-sample arrays written by `ac_fitting_A.py`,
+`ac_fitting_C.py` and `ac_fitting_D.py`, which are refit and retrain runs. Point `STAT_DIR` at their
 `.npy` dumps to regenerate it; otherwise the script says it is skipping it.
 
 Individual entry points. All of them take `--data_dir`, `--ckpt_dir`,
@@ -200,7 +225,9 @@ repository's layout.
 | `run_gain_freq_ablation.py` | A0/A2 training and the gain/centre-frequency ablation (multi-seed) |
 | `verify_patch.py`, `verify_biquad_patch.py` | gain-bound assertion gates (see below) |
 | `table2_revision.py` … `table7_perceptual.py` | main, ablation, paired, OOD and perceptual tables |
-| `ac_biquad_table.py`, `ac_fitting_A.py`, `ac_fitting_C.py` | biquad-constrained architecture comparison |
+| `exact_peq_response.py`, `exact_peq_np.py` | exact RBJ section magnitudes (torch / numpy); run either for its self-test |
+| `ac_biquad_table.py`, `ac_fitting_A.py`, `ac_fitting_C.py`, `ac_fitting_D.py` | biquad-constrained architecture comparison |
+| `check_heads.py`, `eval_exact_biquad.py` | which models carry the exact head; exact-vs-trained rendering check |
 | `table6_biquad.py` | assembles Table 4 from the files above; no GPU or checkpoint needed |
 | `make_manifests.py` | writes `checkpoints_manifest.json` and `dataset_manifest.json` |
 | `make_eval_staging.py` | rebuilds the evaluation staging directory from the manifest mapping |
@@ -248,16 +275,20 @@ one these results came from.
 
 ### Checkpoints
 
-Not redistributed. The manifest names 27 of them in two groups, and the split
-matters because one basename can mean two different files:
-`checkpoints_original/A0_Proposed.pt` is the pre-revision model, while the ±12 dB
-seed-7 model behind the single-checkpoint figures is
-`checkpoints_revision/A0_g12_f16k_s7.pt`.
+Not redistributed; the v1.2 checkpoints are available from the authors on
+request, and a copy obtained that way can be checked against the SHA-256 in the
+manifest. The manifest names 26 of them in two groups:
 
 ```
-checkpoints_original/    15 entries, pre-revision
-checkpoints_revision/    12 entries, retrained under the ±12 dB bound
+checkpoints_original/    10 entries, train_full.py (single seed); A0_Proposed.pt and
+                         A2_withPrefLoss.pt are byte-identical to the seed-7 ±12 files
+checkpoints_revision/    16 entries: A0/A2 ±12 dB (3 seeds each), A0 fc 20 kHz (3 seeds),
+                         the A0 ±6 dB control, and the Option C heads at ±12 and ±6 dB
 ```
+
+The ±12 dB seed-7 model behind the single-checkpoint figures is
+`checkpoints_revision/A0_g12_f16k_s7.pt`; `evaluation_staging` (below) says so
+explicitly rather than relying on the copy in `checkpoints_original/`.
 
 For each entry the manifest records the model it belongs to, the training seed,
 the `gain_max` / `fc_max` it was trained under, its size, and its SHA-256. Its
